@@ -7,6 +7,19 @@ import { createTray } from './tray';
 
 const isDev = !app.isPackaged;
 
+// Install React DevTools in development mode
+if (isDev) {
+  app.whenReady().then(async () => {
+    try {
+      const { default: installExtension, REACT_DEVELOPER_TOOLS } = await import('electron-devtools-installer');
+      await installExtension(REACT_DEVELOPER_TOOLS);
+      console.log('React DevTools installed');
+    } catch (error) {
+      console.log('Failed to install React DevTools:', error);
+    }
+  });
+}
+
 let mainWindow: BrowserWindow | null = null;
 
 function createWindow() {
