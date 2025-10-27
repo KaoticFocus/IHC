@@ -3,6 +3,7 @@ import * as path from 'path';
 import { setupAudioHandlers } from './audioHandlers';
 import { setupVoiceAssistant } from './voiceAssistant';
 import { setupDocumentHandlers } from './documentHandlers';
+import { setupDataHandlers } from './dataStore';
 import { createTray } from './tray';
 
 const isDev = !app.isPackaged;
@@ -52,10 +53,11 @@ function createWindow() {
 app.whenReady().then(() => {
   createWindow();
 
-  // Setup IPC handlers for audio and voice assistant
+  // Setup IPC handlers
   setupAudioHandlers();
   setupVoiceAssistant();
   setupDocumentHandlers();
+  setupDataHandlers();
 
   // Create system tray
   if (mainWindow) {

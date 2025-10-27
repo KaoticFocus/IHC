@@ -88,10 +88,23 @@ export function setupAudioHandlers() {
   });
 
   // Stop recording and save audio data
-  ipcMain.handle('stop-recording', async (event, audioData: Buffer) => {
+  ipcMain.handle('stop-recording', async (event, audioData?: Buffer | Uint8Array) => {
     try {
       if (audioData) {
-        fs.writeFileSync(audioPath, audioData);
+        // Create recordings directory if it doesn't exist
+        const recordingsDir = path.join(app.getPath('userData'), 'recordings');
+        if (!fs.existsSync(recordingsDir)) {
+          fs.mkdirSync(recordingsDir, { recursive: true });
+        }
+
+        // Update audioPath to use recordings directory
+        audioPath = path.join(recordingsDir, `recording_${Date.now()}.webm`);
+        
+        // Convert Uint8Array to Buffer if needed
+        const dataToWrite = Buffer.isBuffer(audioData) ? audioData : Buffer.from(audioData);
+        fs.writeFileSync(audioPath, dataToWrite);
+        
+        console.log('Audio saved to:', audioPath);
         return { success: true, audioPath };
       }
       return { success: false, error: 'No audio data provided' };

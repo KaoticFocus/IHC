@@ -26,15 +26,31 @@ import {
 interface Lead {
   id: string;
   name: string;
-  address: string;
-  phone: string;
-  email: string;
-  notes: string;
-  createdAt: number;
+  address?: string;
+  phone?: string;
+  email?: string;
+  notes?: string;
+  type?: string;
+  createdAt: number | string;
 }
 
-export const LeadManagementScreen: React.FC = () => {
+interface LeadManagementScreenProps {
+  leads?: Lead[];
+}
+
+export const LeadManagementScreen: React.FC<LeadManagementScreenProps> = ({ leads: externalLeads = [] }) => {
   const [leads, setLeads] = useState<Lead[]>([]);
+  
+  // Merge external leads (from voice commands) with internal leads
+  useEffect(() => {
+    if (externalLeads.length > 0) {
+      setLeads(prev => {
+        const existingIds = new Set(prev.map(l => l.id));
+        const newLeads = externalLeads.filter(l => !existingIds.has(l.id));
+        return [...prev, ...newLeads];
+      });
+    }
+  }, [externalLeads]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [currentLead, setCurrentLead] = useState<Lead | null>(null);
   const [formData, setFormData] = useState({

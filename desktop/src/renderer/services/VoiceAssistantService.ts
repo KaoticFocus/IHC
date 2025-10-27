@@ -2,6 +2,7 @@ const { ipcRenderer } = window.require('electron');
 
 export interface AssistantResponse {
   text: string;
+  transcription?: string;
   shouldExecute: boolean;
   action?: string;
   parameters?: Record<string, any>;
@@ -32,6 +33,7 @@ class VoiceAssistantService {
       }
 
       const response = await this.analyzeCommand(commandText);
+      response.transcription = commandText;
 
       if (response.text) {
         const speechResult = await ipcRenderer.invoke('generate-speech', response.text);
@@ -45,16 +47,38 @@ class VoiceAssistantService {
       console.error('Error processing voice command:', error);
       return {
         text: 'Sorry, I had trouble understanding that. Could you please try again?',
+        transcription: '',
         shouldExecute: false,
       };
     }
   }
 
   private async analyzeCommand(commandText: string): Promise<AssistantResponse> {
-    return {
-      text: `I heard: ${commandText}`,
-      shouldExecute: false,
-    };
+    try {
+      // Use OpenAI to generate an intelligent response
+      const analysisResult = await ipcRenderer.invoke('analyze-voice-command', {
+        command: commandText,
+        context: this.currentContext
+      });
+
+      if (analysisResult.success) {
+        return {
+          text: analysisResult.response,
+          shouldExecute: analysisResult.shouldExecute || false,
+          action: analysisResult.action,
+          parameters: analysisResult.parameters,
+        };
+      } else {
+        throw new Error(analysisResult.error);
+      }
+    } catch (error) {
+      console.error('Error analyzing command:', error);
+      // Fallback to simple echo if OpenAI fails
+      return {
+        text: `I heard you say: "${commandText}". How can I help you with that?`,
+        shouldExecute: false,
+      };
+    }
   }
 
   getCommandHistory(): string[] {

@@ -114,6 +114,9 @@ export const DocumentManager: React.FC = () => {
     setDocuments(documents.filter(doc => doc.id !== id));
   };
 
+  const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
+  const [audioChunks, setAudioChunks] = useState<Blob[]>([]);
+
   const handleStartDictation = async () => {
     try {
       setIsDictating(true);
@@ -122,45 +125,82 @@ export const DocumentManager: React.FC = () => {
       if (!result.success) {
         throw new Error(result.error);
       }
+
+      // Request microphone access
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      
+      // Create MediaRecorder
+      const recorder = new MediaRecorder(stream);
+      setMediaRecorder(recorder);
+      
+      // Clear previous chunks
+      setAudioChunks([]);
+      
+      // Handle data available event
+      recorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          setAudioChunks(prev => [...prev, event.data]);
+        }
+      };
+      
+      // Start recording
+      recorder.start();
+      console.log('Recording started');
     } catch (error) {
-      console.error('Failed to start dictation:', error);
+      console.error('Failed to start recording:', error);
       setIsDictating(false);
     }
   };
 
   const handleStopDictation = async () => {
     try {
-      const result = await ipcRenderer.invoke('stop-recording');
+      if (!mediaRecorder) {
+        throw new Error('No active recording');
+      }
+
+      // Create a Promise that resolves when recording stops
+      const recordingStoppedPromise = new Promise<Blob>((resolve) => {
+        mediaRecorder.onstop = () => {
+          const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+          resolve(audioBlob);
+        };
+      });
+
+      // Stop the recording
+      mediaRecorder.stop();
+      mediaRecorder.stream.getTracks().forEach(track => track.stop());
+      setMediaRecorder(null);
+
+      // Wait for the recording data
+      const audioBlob = await recordingStoppedPromise;
+      
+      // Convert Blob to ArrayBuffer
+      const arrayBuffer = await audioBlob.arrayBuffer();
+      const uint8Array = new Uint8Array(arrayBuffer);
+      
+      // Save the recording
+      const result = await ipcRenderer.invoke('stop-recording', uint8Array);
       
       if (result.success && result.audioPath) {
-        // Transcribe the audio
-        const transcription = await ipcRenderer.invoke('transcribe-audio', result.audioPath);
+        // Save the voice note
+        const newNote: Note = {
+          id: `note_${Date.now()}`,
+          title: `Voice Note ${new Date().toLocaleString()}`,
+          content: result.audioPath,
+          createdAt: Date.now(),
+          isDictated: true,
+        };
         
-        if (transcription.success) {
-          setCurrentNote(currentNote + ' ' + transcription.text);
-        }
+        setNotes(prev => [...prev, newNote]);
+        setNoteDialogOpen(false);
+        console.log('Voice note saved:', newNote);
       }
-      
-      setIsDictating(false);
     } catch (error) {
-      console.error('Failed to stop dictation:', error);
+      console.error('Failed to stop recording:', error);
+    } finally {
       setIsDictating(false);
+      setAudioChunks([]);
     }
-  };
-
-  const handleSaveNote = () => {
-    const newNote: Note = {
-      id: `note_${Date.now()}`,
-      title: noteTitle || 'Untitled Note',
-      content: currentNote,
-      createdAt: Date.now(),
-      isDictated: true,
-    };
-    
-    setNotes([...notes, newNote]);
-    setCurrentNote('');
-    setNoteTitle('');
-    setNoteDialogOpen(false);
   };
 
   const handleAnalyzeDocument = async (doc: Document) => {
@@ -243,15 +283,29 @@ export const DocumentManager: React.FC = () => {
             <ListItem key={note.id}>
               <ListItemText
                 primary={note.title}
-                secondary={`${new Date(note.createdAt).toLocaleString()} • ${note.content.substring(0, 100)}...`}
+                secondary={`Created: ${new Date(note.createdAt).toLocaleString()}`}
               />
               <ListItemSecondaryAction>
-                <IconButton onClick={() => handleReadDocument({ ...note, content: note.content } as any)}>
+                <IconButton 
+                  onClick={() => ipcRenderer.invoke('play-audio', note.content)}
+                  color="primary"
+                >
                   <ReadIcon />
+                </IconButton>
+                <IconButton 
+                  onClick={() => setNotes(notes.filter(n => n.id !== note.id))}
+                  color="error"
+                >
+                  <DeleteIcon />
                 </IconButton>
               </ListItemSecondaryAction>
             </ListItem>
           ))}
+          {notes.length === 0 && (
+            <Typography variant="body2" color="text.secondary" align="center" sx={{ py: 4 }}>
+              No voice notes yet. Click "New Voice Note" to record one.
+            </Typography>
+          )}
         </List>
       </Paper>
 
@@ -273,44 +327,61 @@ export const DocumentManager: React.FC = () => {
 
       {/* Voice Note Dialog */}
       <Dialog open={noteDialogOpen} onClose={() => setNoteDialogOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>Create Voice Note</DialogTitle>
+        <DialogTitle>Record Voice Note</DialogTitle>
         <DialogContent>
-          <TextField
-            fullWidth
-            label="Note Title"
-            value={noteTitle}
-            onChange={(e) => setNoteTitle(e.target.value)}
-            margin="normal"
-          />
-          <TextField
-            fullWidth
-            label="Note Content"
-            value={currentNote}
-            onChange={(e) => setCurrentNote(e.target.value)}
-            margin="normal"
-            multiline
-            rows={6}
-          />
-          <Box sx={{ mt: 2, display: 'flex', justifyContent: 'center' }}>
+          <Box sx={{ 
+            display: 'flex', 
+            flexDirection: 'column', 
+            alignItems: 'center',
+            py: 4 
+          }}>
+            {isDictating && (
+              <Box sx={{ mb: 3, display: 'flex', gap: 0.5, height: 30, alignItems: 'center' }}>
+                {[...Array(5)].map((_, i) => (
+                  <Box
+                    key={i}
+                    sx={{
+                      width: 4,
+                      bgcolor: 'error.main',
+                      borderRadius: 1,
+                      animation: `waveform 1s ease-in-out infinite`,
+                      animationDelay: `${i * 0.1}s`,
+                      '@keyframes waveform': {
+                        '0%, 100%': { height: '10px' },
+                        '50%': { height: '30px' },
+                      },
+                    }}
+                  />
+                ))}
+              </Box>
+            )}
             <IconButton
-              color={isDictating ? 'secondary' : 'primary'}
+              color={isDictating ? 'error' : 'primary'}
               size="large"
               onClick={isDictating ? handleStopDictation : handleStartDictation}
-              sx={{ width: 64, height: 64 }}
+              sx={{
+                width: 80,
+                height: 80,
+                bgcolor: isDictating ? 'error.main' : 'primary.main',
+                color: 'white',
+                '&:hover': {
+                  bgcolor: isDictating ? 'error.dark' : 'primary.dark',
+                },
+                animation: isDictating ? 'pulse 1.5s infinite' : 'none',
+                '@keyframes pulse': {
+                  '0%': { transform: 'scale(1)', boxShadow: '0 0 0 0 rgba(244, 67, 54, 0.7)' },
+                  '50%': { transform: 'scale(1.05)', boxShadow: '0 0 0 10px rgba(244, 67, 54, 0)' },
+                  '100%': { transform: 'scale(1)', boxShadow: '0 0 0 0 rgba(244, 67, 54, 0)' },
+                },
+              }}
             >
-              {isDictating ? <StopIcon fontSize="large" /> : <MicIcon fontSize="large" />}
+              {isDictating ? <StopIcon sx={{ fontSize: 40 }} /> : <MicIcon sx={{ fontSize: 40 }} />}
             </IconButton>
+            <Typography variant="h6" sx={{ mt: 2, color: isDictating ? 'error.main' : 'text.primary' }}>
+              {isDictating ? '🔴 Recording...' : 'Click to Start Recording'}
+            </Typography>
           </Box>
-          <Typography variant="caption" display="block" align="center" sx={{ mt: 1 }}>
-            {isDictating ? 'Recording... Click to stop' : 'Click microphone to start dictation'}
-          </Typography>
         </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setNoteDialogOpen(false)}>Cancel</Button>
-          <Button onClick={handleSaveNote} variant="contained" disabled={!currentNote}>
-            Save Note
-          </Button>
-        </DialogActions>
       </Dialog>
     </Box>
   );
