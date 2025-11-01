@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body {
+      width: 300px;
+      padding: 16px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+    h1 {
+      margin: 0 0 16px 0;
+      font-size: 18px;
+    }
+    .status {
+      padding: 12px;
+      border-radius: 8px;
+      margin-bottom: 12px;
+      text-align: center;
+    }
+    .status.recording {
+      background-color: #ffebee;
+      color: #c62828;
+    }
+    .status.idle {
+      background-color: #e8f5e9;
+      color: #2e7d32;
+    }
+    button {
+      width: 100%;
+      padding: 12px;
+      margin-bottom: 8px;
+      border: none;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+    button.primary {
+      background-color: #2196f3;
+      color: white;
+    }
+    button.primary:hover {
+      background-color: #1976d2;
+    }
+    button.secondary {
+      background-color: #f44336;
+      color: white;
+    }
+    button.secondary:hover {
+      background-color: #d32f2f;
+    }
+    .shortcuts {
+      margin-top: 16px;
+      padding-top: 16px;
+      border-top: 1px solid #e0e0e0;
+      font-size: 12px;
+      color: #666;
+    }
+    .shortcuts p {
+      margin: 4px 0;
+    }
+  </style>
+</head>
+<body>
+  <h1>IHC Conversation Recorder</h1>
+  
+  <div id="status" class="status idle">
+    Ready
+  </div>
+  
+  <button id="startBtn" class="primary">Start Recording</button>
+  <button id="stopBtn" class="secondary" disabled>Stop Recording</button>
+  
+  <div class="shortcuts">
+    <p><strong>Keyboard Shortcuts:</strong></p>
+    <p>Start: Ctrl+Shift+R</p>
+    <p>Stop: Ctrl+Shift+S</p>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
+
