@@ -18,6 +18,7 @@ import {
 import VoiceAssistantService, { AssistantResponse } from '../services/VoiceAssistantService';
 import AudioService from '../services/AudioService';
 import ExtensionService from '../services/ExtensionService';
+import CommandProcessor from '../services/CommandProcessor';
 import { HelpTooltip } from './HelpTooltip';
 
 interface VoiceAssistantProps {
@@ -127,25 +128,41 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({ currentScreen, o
 
   const executeAction = async (response: AssistantResponse) => {
     try {
-      switch (response.action) {
-        case 'create_lead':
-          if (onCreateLead && response.parameters) {
+      if (response.action && response.parameters) {
+        const result = await CommandProcessor.executeCommand(response.action, response.parameters);
+        
+        if (result.success) {
+          setActionFeedback(result.message);
+          
+          // Handle specific actions
+          if (response.action === 'create_lead' && onCreateLead && response.parameters) {
             onCreateLead(response.parameters);
-            setActionFeedback('✅ Lead created successfully!');
-          } else {
-            setActionFeedback('⚠️ Lead creation not available on this screen');
           }
-          break;
-          
-        case 'navigate':
-          if (onNavigate && response.parameters?.screen) {
-            onNavigate(response.parameters.screen);
-            setActionFeedback(`✅ Navigating to ${response.parameters.screen}`);
-          }
-          break;
-          
-        default:
-          break;
+        } else {
+          setActionFeedback(`⚠️ ${result.message}`);
+        }
+      } else {
+        // Fallback for actions without CommandProcessor
+        switch (response.action) {
+          case 'create_lead':
+            if (onCreateLead && response.parameters) {
+              onCreateLead(response.parameters);
+              setActionFeedback('✅ Lead created successfully!');
+            } else {
+              setActionFeedback('⚠️ Lead creation not available on this screen');
+            }
+            break;
+            
+          case 'navigate':
+            if (onNavigate && response.parameters?.screen) {
+              onNavigate(response.parameters.screen);
+              setActionFeedback(`✅ Navigating to ${response.parameters.screen}`);
+            }
+            break;
+            
+          default:
+            break;
+        }
       }
     } catch (error) {
       console.error('Error executing action:', error);
@@ -157,6 +174,8 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({ currentScreen, o
     <Box sx={{ position: 'fixed', bottom: 20, right: 20, zIndex: 1000 }}>
       <Paper
         elevation={3}
+        role="region"
+        aria-label="Voice Assistant"
         sx={{
           p: 2,
           borderRadius: 2,
@@ -179,6 +198,8 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({ currentScreen, o
               <IconButton
                 size="small"
                 onClick={() => setShowHistory(!showHistory)}
+                aria-label="Toggle command history"
+                aria-expanded={showHistory}
               >
                 <HistoryIcon />
               </IconButton>
@@ -266,6 +287,9 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({ currentScreen, o
               size="large"
               onClick={handleVoiceCommand}
               disabled={isProcessing && !isListening}
+              aria-label={isListening ? 'Stop recording' : 'Start recording'}
+              aria-pressed={isListening}
+              aria-busy={isProcessing}
               sx={{
                 width: 64,
                 height: 64,
@@ -273,6 +297,10 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({ currentScreen, o
                 color: 'white',
                 '&:hover': {
                   bgcolor: isListening ? 'error.dark' : 'primary.dark',
+                },
+                '&:focus-visible': {
+                  outline: '2px solid',
+                  outlineOffset: '2px',
                 },
                 animation: isListening ? 'pulse 1.5s infinite' : 'none',
                 '@keyframes pulse': {

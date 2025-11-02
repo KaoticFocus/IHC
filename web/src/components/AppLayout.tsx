@@ -11,6 +11,7 @@ import {
   ListItemText,
   Box,
   styled,
+  Chip,
 } from '@mui/material';
 import {
   Menu as MenuIcon,
@@ -18,8 +19,17 @@ import {
   Home as HomeIcon,
   People as PeopleIcon,
   Description as DescriptionIcon,
+  AccountCircle as AccountCircleIcon,
+  CloudSync as CloudSyncIcon,
+  LightMode as LightModeIcon,
+  DarkMode as DarkModeIcon,
+  Keyboard as KeyboardIcon,
 } from '@mui/icons-material';
 import { HelpTooltip } from './HelpTooltip';
+import { useAuth } from '../context/AuthContext';
+import { useThemeMode } from '../context/ThemeContext';
+import { AuthModal } from './AuthModal';
+import { KeyboardShortcutsModal } from './KeyboardShortcutsModal';
 
 const drawerWidth = 240;
 
@@ -53,7 +63,11 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
   onScreenChange,
   onSettingsClick,
 }) => {
+  const auth = useAuth();
+  const { toggleTheme, theme } = useThemeMode();
   const [drawerOpen, setDrawerOpen] = React.useState(true);
+  const [authOpen, setAuthOpen] = React.useState(false);
+  const [shortcutsOpen, setShortcutsOpen] = React.useState(false);
 
   const handleDrawerToggle = () => {
     setDrawerOpen(!drawerOpen);
@@ -86,6 +100,30 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
           <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1 }}>
             IHC Conversation Recorder
           </Typography>
+          {auth.user && (
+            <Chip
+              icon={<CloudSyncIcon />}
+              label={auth.user.email?.split('@')[0] || 'User'}
+              size="small"
+              color="success"
+              sx={{ mr: 1, color: 'white' }}
+            />
+          )}
+          <HelpTooltip title="Keyboard shortcuts">
+            <IconButton color="inherit" onClick={() => setShortcutsOpen(true)}>
+              <KeyboardIcon />
+            </IconButton>
+          </HelpTooltip>
+          <HelpTooltip title={`Switch to ${theme.palette.mode === 'dark' ? 'light' : 'dark'} mode`}>
+            <IconButton color="inherit" onClick={toggleTheme}>
+              {theme.palette.mode === 'dark' ? <LightModeIcon /> : <DarkModeIcon />}
+            </IconButton>
+          </HelpTooltip>
+          <HelpTooltip title={auth.user ? 'Account' : 'Sign in'}>
+            <IconButton color="inherit" onClick={() => setAuthOpen(true)}>
+              <AccountCircleIcon />
+            </IconButton>
+          </HelpTooltip>
           <HelpTooltip title="Open settings">
             <IconButton color="inherit" onClick={onSettingsClick}>
               <SettingsIcon />
@@ -126,6 +164,8 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
         <Toolbar />
         {children}
       </Main>
+      <AuthModal open={authOpen} onClose={() => setAuthOpen(false)} />
+      <KeyboardShortcutsModal open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
     </Box>
   );
 };

@@ -15,10 +15,17 @@ import {
   Alert,
   FormControlLabel,
   Switch,
+  Divider,
+  Chip,
 } from '@mui/material';
+import { CloudSync as CloudSyncIcon, CloudOff as CloudOffIcon } from '@mui/icons-material';
 import OpenAIService from '../services/OpenAIService';
 import AudioService, { AudioDevice } from '../services/AudioService';
 import { useTooltips } from '../context/TooltipContext';
+import { useAuth } from '../context/AuthContext';
+import { isSupabaseConfigured, initSupabase } from '../services/SupabaseService';
+import HybridStorageService from '../services/HybridStorageService';
+import { ErrorService } from '../services/ErrorService';
 
 interface SettingsModalProps {
   open: boolean;
@@ -27,12 +34,17 @@ interface SettingsModalProps {
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) => {
   const { tooltipsEnabled, setTooltipsEnabled } = useTooltips();
+  const auth = useAuth();
   const [apiKey, setApiKey] = useState('');
+  const [supabaseUrl, setSupabaseUrl] = useState('');
+  const [supabaseKey, setSupabaseKey] = useState('');
   const [audioDevices, setAudioDevices] = useState<AudioDevice[]>([]);
   const [selectedInput, setSelectedInput] = useState('');
   const [selectedOutput, setSelectedOutput] = useState('');
   const [saveStatus, setSaveStatus] = useState<'success' | 'error' | null>(null);
   const [errorMessage, setErrorMessage] = useState('');
+  const [cloudEnabled, setCloudEnabled] = useState(false);
+  const [syncing, setSyncing] = useState(false);
 
   useEffect(() => {
     if (open) {
@@ -77,6 +89,18 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) =
       if (hasKey) {
         setApiKey('********'); // Mask the actual key
       }
+
+      // Check Supabase configuration
+      const isConfigured = isSupabaseConfigured();
+      setCloudEnabled(isConfigured && HybridStorageService.isCloudEnabled());
+      
+      // Load Supabase credentials if not configured via env
+      if (!isConfigured) {
+        const storedUrl = localStorage.getItem('supabase_url') || '';
+        const storedKey = localStorage.getItem('supabase_key') || '';
+        setSupabaseUrl(storedUrl);
+        setSupabaseKey(storedKey ? '********' : '');
+      }
     } catch (error) {
       console.error('Failed to load settings:', error);
       setErrorMessage('Failed to load settings: ' + (error as Error).message);
@@ -91,6 +115,16 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) =
       // Save OpenAI key if changed
       if (apiKey && apiKey !== '********') {
         await OpenAIService.setApiKey(apiKey);
+      }
+
+      // Configure Supabase if provided
+      if (supabaseUrl && supabaseKey && supabaseKey !== '********') {
+        initSupabase(supabaseUrl, supabaseKey);
+        localStorage.setItem('supabase_url', supabaseUrl);
+        localStorage.setItem('supabase_key', supabaseKey);
+        await HybridStorageService.enableCloudSync();
+        setCloudEnabled(true);
+        ErrorService.handleSuccess('Supabase configured successfully');
       }
 
       // Save audio device selections
@@ -114,6 +148,18 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) =
     }
   };
 
+  const handleSync = async () => {
+    setSyncing(true);
+    try {
+      await HybridStorageService.syncToCloud();
+      ErrorService.handleSuccess('Data synced to cloud successfully');
+    } catch (error) {
+      ErrorService.handleError(error, 'syncToCloud');
+    } finally {
+      setSyncing(false);
+    }
+  };
+
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
       <DialogTitle>Settings</DialogTitle>
@@ -130,7 +176,64 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) =
             onChange={(e) => setApiKey(e.target.value)}
             margin="normal"
             placeholder="sk-..."
+            helperText="Required for AI transcription and analysis"
           />
+
+          <Divider sx={{ my: 3 }} />
+
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+            <Typography variant="h6">
+              Cloud Sync (Supabase)
+            </Typography>
+            <Chip
+              icon={cloudEnabled ? <CloudSyncIcon /> : <CloudOffIcon />}
+              label={cloudEnabled ? 'Enabled' : 'Disabled'}
+              color={cloudEnabled ? 'success' : 'default'}
+            />
+          </Box>
+
+          {!isSupabaseConfigured() && (
+            <>
+              <TextField
+                fullWidth
+                label="Supabase URL"
+                value={supabaseUrl}
+                onChange={(e) => setSupabaseUrl(e.target.value)}
+                margin="normal"
+                placeholder="https://your-project.supabase.co"
+                helperText="Get this from your Supabase dashboard"
+              />
+              <TextField
+                fullWidth
+                label="Supabase Anon Key"
+                type="password"
+                value={supabaseKey}
+                onChange={(e) => setSupabaseKey(e.target.value)}
+                margin="normal"
+                placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                helperText="Find this in Settings > API"
+              />
+            </>
+          )}
+
+          {cloudEnabled && (
+            <Box sx={{ mt: 2 }}>
+              <Button
+                variant="outlined"
+                startIcon={<CloudSyncIcon />}
+                onClick={handleSync}
+                disabled={syncing}
+                fullWidth
+              >
+                {syncing ? 'Syncing...' : 'Sync to Cloud'}
+              </Button>
+              {auth.user && (
+                <Typography variant="body2" color="text.secondary" sx={{ mt: 1, textAlign: 'center' }}>
+                  Signed in as: {auth.user.email}
+                </Typography>
+              )}
+            </Box>
+          )}
 
           <Typography variant="h6" sx={{ mt: 3 }} gutterBottom>
             User Interface

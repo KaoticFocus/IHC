@@ -131,6 +131,32 @@ class StorageService {
       request.onsuccess = () => resolve(request.result?.blob || null);
     });
   }
+
+  async saveTranscript(sessionId: string, transcriptData: any): Promise<void> {
+    return this.setSetting(`transcript_${sessionId}`, transcriptData);
+  }
+
+  async getTranscript(sessionId: string): Promise<any> {
+    return this.getSetting(`transcript_${sessionId}`);
+  }
+
+  async getAllTranscripts(): Promise<any[]> {
+    const db = await this.initDB();
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction(['settings'], 'readonly');
+      const store = transaction.objectStore('settings');
+      const request = store.getAll();
+
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => {
+        const allSettings = request.result || [];
+        const transcripts = allSettings
+          .filter((s: any) => s.key && s.key.startsWith('transcript_'))
+          .map((s: any) => s.value);
+        resolve(transcripts);
+      };
+    });
+  }
 }
 
 export default new StorageService();
