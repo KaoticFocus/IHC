@@ -35,13 +35,17 @@ The Web, iOS, and Android versions now have **complete feature parity**. All cor
 | Enhanced Transcripts | ✅ | ✅ | ✅ | ✅ |
 | AI Analysis | ✅ | ✅ | ✅ | ✅ |
 | Scope of Work | ✅ | ✅ | ✅ | ✅ |
-| Lead Management | ✅ | ✅ | ✅ | ✅ |
 | Voice Commands | ✅ | ✅ | ✅ | ✅ |
-| Document Management | ✅ | ✅ | ✅ | ✅ |
+| Document Management | ✅ | ⚠️ | ⚠️ | Partial* |
 | Settings | ✅ | ✅ | ✅ | ✅ |
-| Onboarding | ⚠️ | ✅ | ✅ | Partial* |
+| Authentication | ✅ | ⚠️ | ⚠️ | Partial** |
+| Dashboard | ✅ | ⚠️ | ⚠️ | Partial*** |
+| Onboarding | ⚠️ | ✅ | ✅ | Partial**** |
 
-*Web app doesn't need onboarding modal as it's browser-based
+*Mobile apps need standalone DocumentManager (currently removed with leads)
+**Mobile apps need Supabase authentication integration
+***Mobile apps need Dashboard component/equivalent
+****Web app doesn't need onboarding modal as it's browser-based
 
 ## Build Status
 
@@ -55,12 +59,16 @@ The Web, iOS, and Android versions now have **complete feature parity**. All cor
    - Generate AI analysis
    - Create scope of work documents
    - Test voice commands
-   - Verify lead management
+   - Verify document management
+   - Test authentication (Google/Apple sign-in)
 
 2. **Mobile Apps**:
    - Verify all existing features work
    - Compare UI/UX consistency
    - Test cross-platform workflows
+   - Add standalone DocumentManager
+   - Add authentication integration
+   - Add Dashboard component
 
 ## Platform-Specific Notes
 
@@ -81,5 +89,5 @@ All platforms share the same core AI functionality and business logic, ensuring 
 
 ---
 
-**Status**: ✅ Feature parity achieved!
+**Status**: ⚠️ Feature parity in progress - Lead management removed from all platforms. Document management, authentication, and dashboard need to be added to mobile apps.
 

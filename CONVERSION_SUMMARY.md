@@ -2,7 +2,7 @@
 
 ## Overview
 
-The desktop Electron app has been successfully converted to a browser-based web application with an accompanying browser extension that provides desktop-like functionality.
+The application has been successfully converted to a browser-based web application with an accompanying browser extension that provides desktop-like functionality.
 
 ## Structure
 
@@ -24,9 +24,9 @@ The desktop Electron app has been successfully converted to a browser-based web 
   - Background recording support
   - Communication bridge with web app
 
-## Key Changes from Desktop Version
+## Key Changes
 
-### 1. Electron IPC → Web APIs
+### 1. Web APIs Implementation
 - Replaced `ipcRenderer` calls with:
   - **IndexedDB** for data persistence (leads, notes, recordings)
   - **Web Audio API** for recording/playback

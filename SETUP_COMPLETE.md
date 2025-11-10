@@ -74,7 +74,12 @@ IHC/
 │   ├── popup.html/js      # Extension popup UI
 │   └── manifest.json      # Extension manifest
 │
-└── desktop/               # Original Electron app (kept for reference)
+├── extension/              # Browser extension
+│   ├── icons/              # Extension icons (SVG + instructions)
+│   ├── background.js      # Background service worker
+│   ├── content.js         # Content script
+│   ├── popup.html/js      # Extension popup UI
+│   └── manifest.json      # Extension manifest
 ```
 
 ## 🔧 Development Commands

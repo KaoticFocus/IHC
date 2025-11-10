@@ -12,7 +12,9 @@ import {
   Tab,
   Link,
   Alert,
+  Divider,
 } from '@mui/material';
+import { Google, Apple } from '@mui/icons-material';
 import { useAuth } from '../context/AuthContext';
 import { ErrorService } from '../services/ErrorService';
 
@@ -30,7 +32,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ open, onClose }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const { signIn, signUp, resetPassword } = useAuth();
+  const { signIn, signUp, resetPassword, signInWithOAuth } = useAuth();
 
   const handleSignIn = async () => {
     if (!email || !password) {
@@ -108,6 +110,20 @@ export const AuthModal: React.FC<AuthModalProps> = ({ open, onClose }) => {
     }
   };
 
+  const handleOAuthSignIn = async (provider: 'google' | 'apple') => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      await signInWithOAuth(provider);
+      // OAuth will redirect, so we don't need to close the modal here
+    } catch (err: any) {
+      setError(err.message || `Failed to sign in with ${provider}`);
+      ErrorService.handleError(err, `oauthSignIn-${provider}`);
+      setLoading(false);
+    }
+  };
+
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
       <DialogTitle>
@@ -126,6 +142,49 @@ export const AuthModal: React.FC<AuthModalProps> = ({ open, onClose }) => {
 
         {tab === 0 && (
           <Box sx={{ pt: 2 }}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mb: 2 }}>
+              <Button
+                variant="outlined"
+                fullWidth
+                startIcon={<Google />}
+                onClick={() => handleOAuthSignIn('google')}
+                disabled={loading}
+                sx={{
+                  textTransform: 'none',
+                  py: 1.5,
+                  borderColor: 'divider',
+                  '&:hover': {
+                    borderColor: 'primary.main',
+                    backgroundColor: 'action.hover',
+                  },
+                }}
+              >
+                Continue with Google
+              </Button>
+              <Button
+                variant="outlined"
+                fullWidth
+                startIcon={<Apple />}
+                onClick={() => handleOAuthSignIn('apple')}
+                disabled={loading}
+                sx={{
+                  textTransform: 'none',
+                  py: 1.5,
+                  borderColor: 'divider',
+                  '&:hover': {
+                    borderColor: 'primary.main',
+                    backgroundColor: 'action.hover',
+                  },
+                }}
+              >
+                Continue with Apple
+              </Button>
+            </Box>
+            <Divider sx={{ my: 2 }}>
+              <Typography variant="body2" color="text.secondary">
+                OR
+              </Typography>
+            </Divider>
             <TextField
               fullWidth
               label="Email"
@@ -159,6 +218,49 @@ export const AuthModal: React.FC<AuthModalProps> = ({ open, onClose }) => {
 
         {tab === 1 && (
           <Box sx={{ pt: 2 }}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mb: 2 }}>
+              <Button
+                variant="outlined"
+                fullWidth
+                startIcon={<Google />}
+                onClick={() => handleOAuthSignIn('google')}
+                disabled={loading}
+                sx={{
+                  textTransform: 'none',
+                  py: 1.5,
+                  borderColor: 'divider',
+                  '&:hover': {
+                    borderColor: 'primary.main',
+                    backgroundColor: 'action.hover',
+                  },
+                }}
+              >
+                Sign up with Google
+              </Button>
+              <Button
+                variant="outlined"
+                fullWidth
+                startIcon={<Apple />}
+                onClick={() => handleOAuthSignIn('apple')}
+                disabled={loading}
+                sx={{
+                  textTransform: 'none',
+                  py: 1.5,
+                  borderColor: 'divider',
+                  '&:hover': {
+                    borderColor: 'primary.main',
+                    backgroundColor: 'action.hover',
+                  },
+                }}
+              >
+                Sign up with Apple
+              </Button>
+            </Box>
+            <Divider sx={{ my: 2 }}>
+              <Typography variant="body2" color="text.secondary">
+                OR
+              </Typography>
+            </Divider>
             <TextField
               fullWidth
               label="Full Name"

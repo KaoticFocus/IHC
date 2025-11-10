@@ -6,27 +6,16 @@ import {
   Typography,
   Card,
   CardContent,
-  LinearProgress,
-  Chip,
   Button,
-  List,
-  ListItem,
-  ListItemIcon,
-  ListItemText,
-  Divider,
 } from '@mui/material';
 import {
   People as PeopleIcon,
   Description as DescriptionIcon,
   Mic as MicIcon,
-  TrendingUp as TrendingUpIcon,
-  CheckCircle as CheckCircleIcon,
 } from '@mui/icons-material';
-import { Lead } from '../types/Lead';
 import { EnhancedTranscript } from '../services/EnhancedTranscriptionService';
 
 interface DashboardProps {
-  leads: Lead[];
   transcripts: EnhancedTranscript[];
   isRecording: boolean;
   recordingDuration?: number;
@@ -35,7 +24,6 @@ interface DashboardProps {
 }
 
 export const Dashboard: React.FC<DashboardProps> = ({
-  leads,
   transcripts,
   isRecording,
   recordingDuration = 0,
@@ -43,28 +31,14 @@ export const Dashboard: React.FC<DashboardProps> = ({
   onStartRecording,
 }) => {
   const stats = useMemo(() => {
-    const totalLeads = leads.length;
-    const activeLeads = leads.filter(l => {
-      const status = l.status;
-      return status === 'lead' || status === 'qualified' || status === 'estimate';
-    }).length;
-    const closedLeads = leads.filter(l => l.status === 'closed').length;
     const totalTranscripts = transcripts.length;
     const totalWords = transcripts.reduce((sum, t) => sum + t.text.split(' ').length, 0);
-    const recentLeads = leads
-      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-      .slice(0, 5);
 
     return {
-      totalLeads,
-      activeLeads,
-      closedLeads,
       totalTranscripts,
       totalWords,
-      recentLeads,
-      conversionRate: totalLeads > 0 ? (closedLeads / totalLeads) * 100 : 0,
     };
-  }, [leads, transcripts]);
+  }, [transcripts]);
 
   const formatDuration = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -108,60 +82,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
       {/* Stats Grid */}
       <Grid container spacing={3} sx={{ mb: 3 }}>
-        <Grid item xs={12} sm={6} md={3}>
-          <Card>
-            <CardContent>
-              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <Box>
-                  <Typography color="text.secondary" gutterBottom>
-                    Total Leads
-                  </Typography>
-                  <Typography variant="h4">{stats.totalLeads}</Typography>
-                </Box>
-                <PeopleIcon sx={{ fontSize: 40, color: 'primary.main' }} />
-              </Box>
-            </CardContent>
-          </Card>
-        </Grid>
-
-        <Grid item xs={12} sm={6} md={3}>
-          <Card>
-            <CardContent>
-              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <Box>
-                  <Typography color="text.secondary" gutterBottom>
-                    Active Leads
-                  </Typography>
-                  <Typography variant="h4">{stats.activeLeads}</Typography>
-                </Box>
-                <TrendingUpIcon sx={{ fontSize: 40, color: 'success.main' }} />
-              </Box>
-            </CardContent>
-          </Card>
-        </Grid>
-
-        <Grid item xs={12} sm={6} md={3}>
-          <Card>
-            <CardContent>
-              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <Box>
-                  <Typography color="text.secondary" gutterBottom>
-                    Conversion Rate
-                  </Typography>
-                  <Typography variant="h4">{stats.conversionRate.toFixed(1)}%</Typography>
-                </Box>
-                <CheckCircleIcon sx={{ fontSize: 40, color: 'warning.main' }} />
-              </Box>
-              <LinearProgress
-                variant="determinate"
-                value={stats.conversionRate}
-                sx={{ mt: 1 }}
-              />
-            </CardContent>
-          </Card>
-        </Grid>
-
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid item xs={12} sm={6} md={6}>
           <Card>
             <CardContent>
               <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -198,14 +119,6 @@ export const Dashboard: React.FC<DashboardProps> = ({
           </Button>
           <Button
             variant="outlined"
-            startIcon={<PeopleIcon />}
-            onClick={() => onNavigate('leads')}
-            size="large"
-          >
-            View Leads
-          </Button>
-          <Button
-            variant="outlined"
             startIcon={<DescriptionIcon />}
             onClick={() => onNavigate('transcripts')}
             size="large"
@@ -215,44 +128,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
         </Box>
       </Paper>
 
-      {/* Recent Leads */}
-      {stats.recentLeads.length > 0 && (
-        <Paper sx={{ p: 2 }}>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-            <Typography variant="h6">Recent Leads</Typography>
-            <Button size="small" onClick={() => onNavigate('leads')}>
-              View All
-            </Button>
-          </Box>
-          <List>
-            {stats.recentLeads.map((lead, index) => (
-              <React.Fragment key={lead.id}>
-                <ListItem>
-                  <ListItemIcon>
-                    <PeopleIcon color="primary" />
-                  </ListItemIcon>
-                  <ListItemText
-                    primary={lead.name}
-                    secondary={
-                      <Box sx={{ display: 'flex', gap: 1, mt: 0.5 }}>
-                        {lead.type && <Chip label={lead.type} size="small" />}
-                        <Chip label={lead.status} size="small" color="default" />
-                        <Typography variant="caption" color="text.secondary">
-                          {new Date(lead.createdAt).toLocaleDateString()}
-                        </Typography>
-                      </Box>
-                    }
-                  />
-                </ListItem>
-                {index < stats.recentLeads.length - 1 && <Divider />}
-              </React.Fragment>
-            ))}
-          </List>
-        </Paper>
-      )}
-
       {/* Empty State */}
-      {stats.totalLeads === 0 && stats.totalTranscripts === 0 && (
+      {stats.totalTranscripts === 0 && (
         <Paper
           sx={{
             p: 6,
@@ -265,7 +142,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
             Get Started
           </Typography>
           <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
-            Start by recording your first conversation or creating a lead
+            Start by recording your first conversation
           </Typography>
           <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center' }}>
             <Button
@@ -275,14 +152,6 @@ export const Dashboard: React.FC<DashboardProps> = ({
               size="large"
             >
               Start Recording
-            </Button>
-            <Button
-              variant="outlined"
-              startIcon={<PeopleIcon />}
-              onClick={() => onNavigate('leads')}
-              size="large"
-            >
-              Create Lead
             </Button>
           </Box>
         </Paper>

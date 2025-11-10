@@ -1,6 +1,5 @@
 import React, { useState, useEffect, Suspense, lazy, useRef } from 'react';
 import { Box, CircularProgress } from '@mui/material';
-import { VoiceAssistant } from './components/VoiceAssistant';
 import { TranscriptViewer } from './components/TranscriptViewer';
 import { SettingsModal } from './components/SettingsModal';
 import { AuthModal } from './components/AuthModal';
@@ -12,7 +11,6 @@ import { useAuth } from './context/AuthContext';
 import HybridStorageService from './services/HybridStorageService';
 
 // Lazy load heavy components for code splitting
-const LeadManagementScreen = lazy(() => import('./components/LeadManagementScreen').then(m => ({ default: m.LeadManagementScreen })));
 const DocumentManager = lazy(() => import('./components/DocumentManager').then(m => ({ default: m.DocumentManager })));
 const AppLayout = lazy(() => import('./components/AppLayout').then(m => ({ default: m.AppLayout })));
 const AIAnalysisViewer = lazy(() => import('./components/AIAnalysisViewer').then(m => ({ default: m.AIAnalysisViewer })));
@@ -24,7 +22,6 @@ import OpenAIService from './services/OpenAIService';
 import CommandProcessor from './services/CommandProcessor';
 import { ErrorService } from './services/ErrorService';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
-import { Lead } from './types/Lead';
 import { ScopeOfWork } from './types/ScopeOfWork';
 import { AIAnalysis } from './types/AIAnalysis';
 
@@ -34,7 +31,6 @@ export const App: React.FC = () => {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [authOpen, setAuthOpen] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
-  const [leads, setLeads] = useState<Lead[]>([]);
   const [isRecording, setIsRecording] = useState(false);
   const [recordingDuration, setRecordingDuration] = useState(0);
   const [transcriptEntries, setTranscriptEntries] = useState<EnhancedTranscript[]>([]);
@@ -56,20 +52,28 @@ export const App: React.FC = () => {
       try {
         setIsLoading(true);
         
+        // Handle OAuth callback
+        const hashParams = new URLSearchParams(window.location.hash.substring(1));
+        const accessToken = hashParams.get('access_token');
+        const error = hashParams.get('error');
+        const errorDescription = hashParams.get('error_description');
+        
+        if (error) {
+          ErrorService.handleError(new Error(errorDescription || error), 'oauthCallback');
+          // Clean up URL
+          window.history.replaceState({}, document.title, window.location.pathname);
+        } else if (accessToken) {
+          // OAuth callback - session will be handled by AuthContext
+          // Clean up URL
+          window.history.replaceState({}, document.title, window.location.pathname);
+          ErrorService.handleSuccess('Successfully signed in!');
+        }
+        
         // Enable cloud sync if authenticated
         if (auth.user) {
           await HybridStorageService.enableCloudSync();
           // Sync from cloud on startup
           await HybridStorageService.syncFromCloud();
-        }
-        
-        // Load leads (from local or cloud)
-        const [savedLeads] = await ErrorService.handleAsyncError(
-          StorageService.getLeads(),
-          'loadLeads'
-        );
-        if (savedLeads) {
-          setLeads(savedLeads);
         }
         
         // Load audio settings
@@ -90,7 +94,7 @@ export const App: React.FC = () => {
     };
     
     initializeApp();
-  }, []);
+  }, [auth.user]);
 
   // Keyboard shortcuts
   useKeyboardShortcuts([
@@ -112,12 +116,6 @@ export const App: React.FC = () => {
       ctrl: true,
       action: () => setSettingsOpen(true),
       description: 'Open settings',
-    },
-    {
-      key: 'l',
-      ctrl: true,
-      action: () => setCurrentScreen('leads'),
-      description: 'Go to leads',
     },
     {
       key: 'm',
@@ -162,10 +160,6 @@ export const App: React.FC = () => {
       } else {
         stopRecording();
       }
-    });
-
-    CommandProcessor.setLeadCallback((action: string, data: any) => {
-      handleLeadAction(action, data);
     });
   };
 
@@ -289,22 +283,6 @@ export const App: React.FC = () => {
     }
   };
 
-  const handleLeadAction = (action: string, data: any) => {
-    switch (action) {
-      case 'create':
-        // Lead creation will be handled by VoiceAssistant component
-        break;
-      case 'search':
-        console.log('Searching leads:', data);
-        break;
-      case 'generate_scope':
-        generateScopeOfWork();
-        break;
-      default:
-        console.log(`Lead action ${action} not implemented`);
-    }
-  };
-
   const generateScopeOfWork = async () => {
     try {
       if (transcriptEntries.length === 0) {
@@ -337,37 +315,6 @@ export const App: React.FC = () => {
 
   const handleScreenChange = (screen: string) => {
     setCurrentScreen(screen);
-  };
-
-  const handleCreateLead = async (leadData: Partial<Lead>) => {
-    const newLead: Lead = {
-      id: Date.now().toString(),
-      name: leadData.name || 'Unknown',
-      email: leadData.email,
-      phone: leadData.phone,
-      address: leadData.address,
-      type: leadData.type,
-      status: leadData.status || 'lead',
-      createdAt: new Date().toISOString(),
-      notes: leadData.notes,
-      projects: leadData.projects,
-    };
-    
-    // Use HybridStorageService which syncs to Supabase if available
-    const [updatedLeads, error] = await ErrorService.handleAsyncError(
-      HybridStorageService.saveLead(newLead),
-      'saveLead'
-    );
-    
-    if (error || !updatedLeads) {
-      return;
-    }
-    
-    setLeads(updatedLeads);
-    ErrorService.handleSuccess(`Lead created for ${newLead.name}`);
-    
-    // Navigate to leads screen to show the new lead
-    setCurrentScreen('leads');
   };
 
   // Cleanup interval on unmount
@@ -439,7 +386,6 @@ export const App: React.FC = () => {
             </Box>
             
             <Dashboard
-              leads={leads}
               transcripts={[...transcriptEntries, ...savedTranscripts]}
               isRecording={isRecording}
               recordingDuration={recordingDuration}
@@ -511,19 +457,6 @@ export const App: React.FC = () => {
               </Box>
             )}
           </Box>
-        )}
-        
-        {currentScreen === 'leads' && (
-          <>
-            <Suspense fallback={<CircularProgress />}>
-              <LeadManagementScreen leads={leads} />
-            </Suspense>
-            <VoiceAssistant 
-              currentScreen={currentScreen}
-              onNavigate={handleScreenChange}
-              onCreateLead={handleCreateLead}
-            />
-          </>
         )}
 
         {currentScreen === 'documents' && (

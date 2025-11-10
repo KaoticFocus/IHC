@@ -33,11 +33,6 @@ const shortcuts: KeyboardShortcut[] = [
     category: 'Navigation',
   },
   {
-    keys: ['Ctrl', 'L'],
-    description: 'Go to leads',
-    category: 'Navigation',
-  },
-  {
     keys: ['Ctrl', 'M'],
     description: 'Go to main/dashboard',
     category: 'Navigation',

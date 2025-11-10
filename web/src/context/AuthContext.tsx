@@ -9,6 +9,7 @@ interface AuthContextType {
   loading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string, fullName?: string) => Promise<void>;
+  signInWithOAuth: (provider: 'google' | 'apple') => Promise<void>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
   updateProfile: (updates: { full_name?: string }) => Promise<void>;
@@ -118,6 +119,22 @@ export function AuthProvider({ children, supabaseUrl, supabaseAnonKey }: AuthPro
     NotificationService.success('Account created! Please check your email to verify your account.');
   };
 
+  const signInWithOAuth = async (provider: 'google' | 'apple') => {
+    if (!supabase) {
+      throw new Error('Supabase not configured');
+    }
+
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider,
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback`,
+      },
+    });
+
+    if (error) throw error;
+    // OAuth will redirect, so no need to update state here
+  };
+
   const signOut = async () => {
     if (!supabase) {
       throw new Error('Supabase not configured');
@@ -172,6 +189,7 @@ export function AuthProvider({ children, supabaseUrl, supabaseAnonKey }: AuthPro
     loading,
     signIn,
     signUp,
+    signInWithOAuth,
     signOut,
     resetPassword,
     updateProfile,

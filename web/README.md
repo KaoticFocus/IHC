@@ -6,8 +6,7 @@ A browser-based voice recording and transcription application with AI-powered vo
 
 - **Voice Recording**: Record audio using your browser's microphone
 - **AI Transcription**: Transcribe audio using OpenAI Whisper
-- **Voice Assistant**: Interactive AI assistant that can create leads, navigate the app, and answer questions
-- **Lead Management**: Create and manage customer leads
+- **Voice Assistant**: Interactive AI assistant that can navigate the app and answer questions
 - **Document Management**: Upload and manage documents
 - **Transcript Viewer**: View and save conversation transcripts
 
@@ -55,6 +54,22 @@ The extension provides:
 
 ## Configuration
 
+### Environment Variables
+
+Create a `.env` file in the `web` directory with the following variables:
+
+```env
+VITE_SUPABASE_URL=https://xppnphkaeczptxuhmpuv.supabase.co
+VITE_SUPABASE_ANON_KEY=your-anon-key-here
+```
+
+To get your Supabase anon key:
+1. Go to https://supabase.com/dashboard/project/xppnphkaeczptxuhmpuv/settings/api
+2. Copy the "anon" "public" key
+3. Paste it in your `.env` file
+
+### App Settings
+
 1. Open the Settings modal
 2. Enter your OpenAI API key (required for transcription and AI features)
 3. Configure audio input/output devices
@@ -68,12 +83,6 @@ The extension provides:
 2. Speak your command or question
 3. Click again to stop recording
 4. The AI will process your request and respond
-
-### Creating Leads
-
-Use voice commands like:
-- "Create a lead for John Smith, bathroom renovation, phone 555-1234"
-- "Add a new lead for Jane Doe"
 
 ### Keyboard Shortcuts
 

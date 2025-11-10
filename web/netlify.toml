@@ -9,12 +9,23 @@
   publish = "dist"
 
 # Redirect all routes to index.html for client-side routing
+# Except for OAuth callback which needs to handle hash fragments
+[[redirects]]
+  from = "/auth/callback"
+  to = "/index.html"
+  status = 200
+
 [[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
 
 # Environment variables (set these in Netlify dashboard)
-# VITE_SUPABASE_URL
-# VITE_SUPABASE_ANON_KEY
+# VITE_SUPABASE_URL=https://xppnphkaeczptxuhmpuv.supabase.co
+# VITE_SUPABASE_ANON_KEY=your-anon-key-here
+# 
+# To get your anon key:
+# 1. Go to https://supabase.com/dashboard/project/xppnphkaeczptxuhmpuv/settings/api
+# 2. Copy the "anon" "public" key
+# 3. Add it as an environment variable in Netlify dashboard
 

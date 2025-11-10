@@ -7,7 +7,7 @@
 
 **IHC Conversation Recorder** is a comprehensive, AI-powered application suite designed specifically for residential remodeling contractors, tradespeople, and construction professionals. The platform enables users to record, transcribe, analyze, and manage client consultations and project discussions with enterprise-grade AI capabilities, transforming verbal conversations into actionable business intelligence.
 
-The application is available across **three platforms** (Web, iOS, and Android) with complete feature parity, ensuring seamless workflows regardless of device preference or work environment.
+The application is available across **two platforms** (Web, iOS, and Android) with complete feature parity, ensuring seamless workflows regardless of device preference or work environment.
 
 ---
 
@@ -109,7 +109,6 @@ The application eliminates manual note-taking, reduces documentation errors, and
 ### **Platforms**
 - **Web Application**: React + Vite + TypeScript + Material-UI
 - **Mobile Applications**: React Native (iOS & Android)
-- **Desktop Application**: Electron (Windows & macOS)
 
 ### **Core Technologies**
 - **Frontend**: React 18, TypeScript 5, Material-UI 5
@@ -148,13 +147,6 @@ The application eliminates manual note-taking, reduces documentation errors, and
 - Background recording support
 - Native file system access
 - Device integration (camera, microphone, storage)
-
-### **Desktop Application**
-- System tray integration
-- Global hotkeys
-- File system access
-- Window management
-- Native OS integration
 
 ---
 
@@ -199,7 +191,7 @@ The application eliminates manual note-taking, reduces documentation errors, and
 ### **Development Status**: ✅ Production Ready
 
 **Completed Features:**
-- ✅ Multi-platform deployment (Web, iOS, Android, Desktop)
+- ✅ Multi-platform deployment (Web, iOS, Android)
 - ✅ Real-time transcription with AI enhancement
 - ✅ Comprehensive AI analysis
 - ✅ Scope of work generation
@@ -304,7 +296,7 @@ The application eliminates manual note-taking, reduces documentation errors, and
 The platform's multi-platform availability ensures accessibility regardless of device preference, while comprehensive feature parity guarantees consistent user experience across all touchpoints. With production-ready code, robust error handling, and performance optimizations, the application is positioned for immediate deployment and commercial use.
 
 **Key Metrics:**
-- **3 Platforms**: Web, iOS, Android (with Desktop variant)
+- **2 Platforms**: Web, iOS, Android
 - **10+ Core Features**: Recording, transcription, AI analysis, scope generation, lead management, etc.
 - **95%+ Accuracy**: AI-enhanced transcription
 - **100% Feature Parity**: Consistent experience across platforms

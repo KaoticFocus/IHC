@@ -21,11 +21,6 @@ class StorageService {
       request.onupgradeneeded = (event) => {
         const db = (event.target as IDBOpenDBRequest).result;
         
-        if (!db.objectStoreNames.contains('leads')) {
-          const leadsStore = db.createObjectStore('leads', { keyPath: 'id' });
-          leadsStore.createIndex('createdAt', 'createdAt', { unique: false });
-        }
-
         if (!db.objectStoreNames.contains('notes')) {
           const notesStore = db.createObjectStore('notes', { keyPath: 'id' });
           notesStore.createIndex('createdAt', 'createdAt', { unique: false });
@@ -38,48 +33,6 @@ class StorageService {
         if (!db.objectStoreNames.contains('settings')) {
           db.createObjectStore('settings', { keyPath: 'key' });
         }
-      };
-    });
-  }
-
-  async getLeads(): Promise<any[]> {
-    const db = await this.initDB();
-    return new Promise((resolve, reject) => {
-      const transaction = db.transaction(['leads'], 'readonly');
-      const store = transaction.objectStore('leads');
-      const request = store.getAll();
-
-      request.onerror = () => reject(request.error);
-      request.onsuccess = () => resolve(request.result || []);
-    });
-  }
-
-  async saveLead(lead: any): Promise<any[]> {
-    const db = await this.initDB();
-    return new Promise((resolve, reject) => {
-      const transaction = db.transaction(['leads'], 'readwrite');
-      const store = transaction.objectStore('leads');
-      const request = store.put(lead);
-
-      request.onerror = () => reject(request.error);
-      request.onsuccess = async () => {
-        const leads = await this.getLeads();
-        resolve(leads);
-      };
-    });
-  }
-
-  async deleteLead(id: string): Promise<any[]> {
-    const db = await this.initDB();
-    return new Promise((resolve, reject) => {
-      const transaction = db.transaction(['leads'], 'readwrite');
-      const store = transaction.objectStore('leads');
-      const request = store.delete(id);
-
-      request.onerror = () => reject(request.error);
-      request.onsuccess = async () => {
-        const leads = await this.getLeads();
-        resolve(leads);
       };
     });
   }

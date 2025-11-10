@@ -24,10 +24,9 @@ import { HelpTooltip } from './HelpTooltip';
 interface VoiceAssistantProps {
   currentScreen: string;
   onNavigate?: (screen: string) => void;
-  onCreateLead?: (leadData: any) => void;
 }
 
-export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({ currentScreen, onNavigate, onCreateLead }) => {
+export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({ currentScreen, onNavigate }) => {
   const [isListening, setIsListening] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
@@ -133,26 +132,12 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({ currentScreen, o
         
         if (result.success) {
           setActionFeedback(result.message);
-          
-          // Handle specific actions
-          if (response.action === 'create_lead' && onCreateLead && response.parameters) {
-            onCreateLead(response.parameters);
-          }
         } else {
           setActionFeedback(`⚠️ ${result.message}`);
         }
       } else {
         // Fallback for actions without CommandProcessor
         switch (response.action) {
-          case 'create_lead':
-            if (onCreateLead && response.parameters) {
-              onCreateLead(response.parameters);
-              setActionFeedback('✅ Lead created successfully!');
-            } else {
-              setActionFeedback('⚠️ Lead creation not available on this screen');
-            }
-            break;
-            
           case 'navigate':
             if (onNavigate && response.parameters?.screen) {
               onNavigate(response.parameters.screen);

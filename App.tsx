@@ -30,13 +30,9 @@ import OnboardingModal from './src/components/OnboardingModal';
 import ScopeOfWorkViewer from './src/components/ScopeOfWorkViewer';
 import ContractorScopeViewer from './src/components/ContractorScopeViewer';
 import InteractiveScopeReview from './src/components/InteractiveScopeReview';
-import LeadCreationModal from './src/components/LeadCreationModal';
-import LeadManagementScreen from './src/components/LeadManagementScreen';
 import VoiceAssistant from './src/components/VoiceAssistant';
 import OpenAIService, { AIAnalysis } from './src/services/OpenAIService';
-import LeadManagementService from './src/services/LeadManagementService';
 import CommandProcessor from './src/services/CommandProcessor';
-import { Lead } from './src/types/Lead';
 
 const { width, height } = Dimensions.get('window');
 
@@ -75,9 +71,6 @@ const App: React.FC = () => {
   const [scopeOfWork, setScopeOfWork] = useState<any>(null);
   const [isGeneratingScope, setIsGeneratingScope] = useState(false);
   const [showInteractiveReview, setShowInteractiveReview] = useState(false);
-  const [showLeadCreation, setShowLeadCreation] = useState(false);
-  const [showLeadManagement, setShowLeadManagement] = useState(false);
-  const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [currentScreen, setCurrentScreen] = useState('main');
 
   useEffect(() => {
@@ -85,17 +78,8 @@ const App: React.FC = () => {
     loadRecordings();
     checkOpenAIStatus();
     checkOnboardingStatus();
-    initializeLeadManagement();
+    setupCommandProcessor();
   }, []);
-
-  const initializeLeadManagement = async () => {
-    try {
-      await LeadManagementService.initialize();
-      setupCommandProcessor();
-    } catch (error) {
-      console.error('Error initializing lead management:', error);
-    }
-  };
 
   const setupCommandProcessor = () => {
     CommandProcessor.setNavigationCallback((screen: string) => {
@@ -108,10 +92,6 @@ const App: React.FC = () => {
       } else {
         stopRecording();
       }
-    });
-
-    CommandProcessor.setLeadCallback((action: string, data: any) => {
-      handleLeadAction(action, data);
     });
   };
 
@@ -515,71 +495,22 @@ const App: React.FC = () => {
     setScopeOfWork(updatedScope);
   };
 
-  const handleLeadCreated = (leadId: string) => {
-    setShowLeadCreation(false);
-    // Optionally navigate to the created lead or show success message
-  };
-
-  const handleLeadSelected = (lead: Lead) => {
-    setSelectedLead(lead);
-    // Here you could navigate to a lead detail screen or start a consultation
-    Alert.alert(
-      'Lead Selected',
-      `Selected lead for ${lead.contactInfo.firstName} ${lead.contactInfo.lastName}`,
-      [
-        { text: 'Start Consultation', onPress: () => {
-          // Start recording for this lead
-          setSelectedLead(lead);
-          setShowLeadManagement(false);
-        }},
-        { text: 'View Details', onPress: () => {
-          // Navigate to lead details
-        }},
-        { text: 'Cancel', style: 'cancel' }
-      ]
-    );
-  };
-
   const handleNavigation = (screen: string) => {
     switch (screen) {
       case 'main':
-        setShowLeadManagement(false);
         setShowSettings(false);
         setCurrentScreen('main');
-        break;
-      case 'leads':
-        setShowLeadManagement(true);
-        setCurrentScreen('leads');
         break;
       case 'settings':
         setShowSettings(true);
         setCurrentScreen('settings');
         break;
       case 'back':
-        setShowLeadManagement(false);
         setShowSettings(false);
         setCurrentScreen('main');
         break;
       default:
         console.log(`Navigation to ${screen} not implemented`);
-    }
-  };
-
-  const handleLeadAction = (action: string, data: any) => {
-    switch (action) {
-      case 'create':
-        setShowLeadCreation(true);
-        break;
-      case 'search':
-        // Handle lead search
-        console.log('Searching leads:', data);
-        break;
-      case 'generate_scope':
-        // Handle scope generation
-        console.log('Generating scope:', data);
-        break;
-      default:
-        console.log(`Lead action ${action} not implemented`);
     }
   };
 
@@ -686,12 +617,6 @@ const App: React.FC = () => {
               <Text style={styles.subtitle}>Record client meetings & site consultations</Text>
             </View>
             <View style={styles.headerButtons}>
-              <TouchableOpacity
-                style={styles.headerButton}
-                onPress={() => setShowLeadManagement(true)}
-              >
-                <Icon name="people" size={24} color="#ffffff" />
-              </TouchableOpacity>
               <TouchableOpacity
                 style={styles.headerButton}
                 onPress={() => setShowSettings(true)}
@@ -823,23 +748,6 @@ const App: React.FC = () => {
         sessionId={currentSessionId}
         onScopeUpdated={handleScopeUpdated}
       />
-
-      <LeadCreationModal
-        visible={showLeadCreation}
-        onClose={() => setShowLeadCreation(false)}
-        onLeadCreated={handleLeadCreated}
-      />
-
-      {showLeadManagement && (
-        <LeadManagementScreen
-          onLeadSelected={handleLeadSelected}
-          onBack={() => setShowLeadManagement(false)}
-          onCreateLead={() => {
-            setShowLeadManagement(false);
-            setShowLeadCreation(true);
-          }}
-        />
-      )}
 
       <VoiceAssistant
         onCommandExecuted={handleVoiceCommand}

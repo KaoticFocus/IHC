@@ -64,13 +64,6 @@ export class ExportService {
   }
 
   /**
-   * Export leads as CSV
-   */
-  static exportLeads(leads: any[], filename?: string): void {
-    this.exportToCSV(leads, filename || `leads_${Date.now()}.csv`);
-  }
-
-  /**
    * Export transcript as TXT
    */
   static exportTranscript(transcript: string, filename?: string): void {

@@ -17,7 +17,6 @@ import {
   Menu as MenuIcon,
   Settings as SettingsIcon,
   Home as HomeIcon,
-  People as PeopleIcon,
   Description as DescriptionIcon,
   AccountCircle as AccountCircleIcon,
   CloudSync as CloudSyncIcon,
@@ -75,7 +74,6 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
 
   const menuItems = [
     { text: 'Home', icon: <HomeIcon />, screen: 'main' },
-    { text: 'Leads', icon: <PeopleIcon />, screen: 'leads' },
     { text: 'Documents', icon: <DescriptionIcon />, screen: 'documents' },
     { text: 'Transcripts', icon: <DescriptionIcon />, screen: 'transcripts' },
   ];

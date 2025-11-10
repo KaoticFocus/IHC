@@ -10,7 +10,6 @@ export interface CommandResult {
 class CommandProcessor {
   private navigationCallback?: (screen: string) => void;
   private recordingCallback?: (action: 'start' | 'stop') => void;
-  private leadCallback?: (action: string, data: any) => void;
 
   setNavigationCallback(callback: (screen: string) => void) {
     this.navigationCallback = callback;
@@ -20,21 +19,11 @@ class CommandProcessor {
     this.recordingCallback = callback;
   }
 
-  setLeadCallback(callback: (action: string, data: any) => void) {
-    this.leadCallback = callback;
-  }
-
   async executeCommand(action: string, parameters: any): Promise<CommandResult> {
     try {
       switch (action) {
         case 'navigate':
           return await this.handleNavigation(parameters);
-        
-        case 'create_lead':
-          return await this.handleCreateLead(parameters);
-        
-        case 'search_leads':
-          return await this.handleSearchLeads(parameters);
         
         case 'start_recording':
           return await this.handleStartRecording(parameters);
@@ -84,7 +73,7 @@ class CommandProcessor {
     if (!screen) {
       return {
         success: false,
-        message: 'Which screen would you like to navigate to? You can say "go to leads", "go to settings", or "go back".',
+        message: 'Which screen would you like to navigate to? You can say "go to settings" or "go back".',
       };
     }
 
@@ -97,54 +86,6 @@ class CommandProcessor {
       message: `Navigating to ${screen}...`,
       data: { screen },
     };
-  }
-
-  private async handleCreateLead(parameters: any): Promise<CommandResult> {
-    if (this.leadCallback) {
-      this.leadCallback('create', parameters);
-    }
-
-    return {
-      success: true,
-      message: 'Opening the lead creation form. Please fill in the contact information.',
-      data: { action: 'create_lead' },
-    };
-  }
-
-  private async handleSearchLeads(parameters: any): Promise<CommandResult> {
-    const query = parameters.query;
-    
-    if (!query) {
-      return {
-        success: false,
-        message: 'What would you like to search for? You can search by name, address, or project type.',
-      };
-    }
-
-    try {
-      const leads = await StorageService.getLeads();
-      const lowercaseQuery = query.toLowerCase();
-      const filteredLeads = leads.filter((lead: any) => 
-        lead.name?.toLowerCase().includes(lowercaseQuery) ||
-        lead.address?.toLowerCase().includes(lowercaseQuery) ||
-        lead.email?.toLowerCase().includes(lowercaseQuery)
-      );
-      
-      if (this.leadCallback) {
-        this.leadCallback('search', { query, results: filteredLeads });
-      }
-
-      return {
-        success: true,
-        message: `Found ${filteredLeads.length} leads matching "${query}".`,
-        data: { query, results: filteredLeads },
-      };
-    } catch (error) {
-      return {
-        success: false,
-        message: 'Sorry, I had trouble searching your leads. Please try again.',
-      };
-    }
   }
 
   private async handleStartRecording(_parameters: any): Promise<CommandResult> {
@@ -172,10 +113,6 @@ class CommandProcessor {
   }
 
   private async handleGenerateScope(parameters: any): Promise<CommandResult> {
-    if (this.leadCallback) {
-      this.leadCallback('generate_scope', parameters);
-    }
-
     return {
       success: true,
       message: 'Generating scope of work from your latest recording. This will create a homeowner-friendly project description.',
@@ -281,14 +218,8 @@ class CommandProcessor {
       Here are the commands you can use:
       
       Navigation:
-      - "Show leads" or "Go to leads"
       - "Go to settings"
       - "Go back" or "Return to main"
-      
-      Lead Management:
-      - "Create a new lead"
-      - "Search for [name or address]"
-      - "Show my leads"
       
       Recording:
       - "Start recording"
@@ -342,20 +273,8 @@ class CommandProcessor {
       case 'main':
         return [
           ...baseCommands,
-          'create a lead',
-          'show my leads',
           'start recording',
-          'go to leads',
           'go to settings',
-        ];
-      
-      case 'leads':
-        return [
-          ...baseCommands,
-          'create a new lead',
-          'search for [name]',
-          'go back',
-          'go to main',
         ];
       
       case 'recording':

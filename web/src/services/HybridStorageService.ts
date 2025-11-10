@@ -1,7 +1,6 @@
 import { SupabaseClient } from '@supabase/supabase-js';
 import { getSupabaseClient, isSupabaseConfigured } from './SupabaseService';
 import StorageService from './StorageService';
-import { Lead } from '../types/Lead';
 import { EnhancedTranscript } from './EnhancedTranscriptionService';
 
 /**
@@ -34,32 +33,7 @@ class HybridStorageService {
     if (!this.useSupabase || !this.supabase) {
       return;
     }
-
-    try {
-      // Sync leads
-      const localLeads = await StorageService.getLeads();
-      if (localLeads.length > 0) {
-        const { data: { user } } = await this.supabase.auth.getUser();
-        if (user) {
-          for (const lead of localLeads) {
-            await this.supabase.from('leads').upsert({
-              id: lead.id,
-              user_id: user.id,
-              name: lead.name,
-              email: lead.email,
-              phone: lead.phone,
-              address: lead.address,
-              type: lead.type,
-              status: lead.status,
-              notes: lead.notes,
-              projects: lead.projects || [],
-            });
-          }
-        }
-      }
-    } catch (error) {
-      console.error('Error syncing to cloud:', error);
-    }
+    // No lead syncing needed
   }
 
   /**
@@ -69,126 +43,7 @@ class HybridStorageService {
     if (!this.useSupabase || !this.supabase) {
       return;
     }
-
-    try {
-      const { data: { user } } = await this.supabase.auth.getUser();
-      if (!user) return;
-
-      // Sync leads
-      const { data: cloudLeads, error } = await this.supabase
-        .from('leads')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-
-      if (cloudLeads) {
-        // Merge with local storage
-        const localLeads = await StorageService.getLeads();
-        const mergedLeads = this.mergeLeads(localLeads, cloudLeads);
-        
-        // Save merged leads locally
-        for (const lead of mergedLeads) {
-          await StorageService.saveLead(lead);
-        }
-      }
-    } catch (error) {
-      console.error('Error syncing from cloud:', error);
-    }
-  }
-
-  private mergeLeads(local: Lead[], cloud: any[]): Lead[] {
-    const merged = new Map<string, Lead>();
-
-    // Add local leads
-    local.forEach(lead => merged.set(lead.id, lead));
-
-    // Merge cloud leads (cloud takes precedence for conflicts)
-    cloud.forEach(cloudLead => {
-      const existing = merged.get(cloudLead.id);
-      if (!existing || new Date(cloudLead.updated_at) > new Date(existing.createdAt || 0)) {
-        merged.set(cloudLead.id, {
-          id: cloudLead.id,
-          name: cloudLead.name,
-          email: cloudLead.email,
-          phone: cloudLead.phone,
-          address: cloudLead.address,
-          type: cloudLead.type,
-          status: cloudLead.status,
-          notes: cloudLead.notes,
-          projects: cloudLead.projects,
-          createdAt: cloudLead.created_at,
-          updatedAt: cloudLead.updated_at,
-        });
-      }
-    });
-
-    return Array.from(merged.values());
-  }
-
-  /**
-   * Save lead (syncs to Supabase if available)
-   */
-  async saveLead(lead: Lead): Promise<Lead[]> {
-    // Always save locally first
-    const localLeads = await StorageService.saveLead(lead);
-
-    // Sync to Supabase if available
-    if (this.useSupabase && this.supabase) {
-      try {
-        const { data: { user } } = await this.supabase.auth.getUser();
-        if (user) {
-          const { error } = await this.supabase.from('leads').upsert({
-            id: lead.id,
-            user_id: user.id,
-            name: lead.name,
-            email: lead.email,
-            phone: lead.phone,
-            address: lead.address,
-            type: lead.type,
-            status: lead.status,
-            notes: lead.notes,
-            projects: lead.projects || [],
-            updated_at: new Date().toISOString(),
-          });
-
-          if (error) {
-            console.error('Error saving lead to Supabase:', error);
-          }
-        }
-      } catch (error) {
-        console.error('Error syncing lead to cloud:', error);
-      }
-    }
-
-    return localLeads;
-  }
-
-  /**
-   * Delete lead (syncs to Supabase if available)
-   */
-  async deleteLead(id: string): Promise<Lead[]> {
-    // Delete locally first
-    const localLeads = await StorageService.deleteLead(id);
-
-    // Delete from Supabase if available
-    if (this.useSupabase && this.supabase) {
-      try {
-        const { error } = await this.supabase
-          .from('leads')
-          .delete()
-          .eq('id', id);
-
-        if (error) {
-          console.error('Error deleting lead from Supabase:', error);
-        }
-      } catch (error) {
-        console.error('Error deleting lead from cloud:', error);
-      }
-    }
-
-    return localLeads;
+    // No lead syncing needed
   }
 
   /**
