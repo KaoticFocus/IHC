@@ -12,6 +12,7 @@ import HybridStorageService from './services/HybridStorageService';
 
 // Lazy load heavy components for code splitting
 const DocumentManager = lazy(() => import('./components/DocumentManager').then(m => ({ default: m.DocumentManager })));
+const ProjectManagementScreen = lazy(() => import('./components/ProjectManagementScreen').then(m => ({ default: m.ProjectManagementScreen })));
 const AppLayout = lazy(() => import('./components/AppLayout').then(m => ({ default: m.AppLayout })));
 const AIAnalysisViewer = lazy(() => import('./components/AIAnalysisViewer').then(m => ({ default: m.AIAnalysisViewer })));
 const ScopeOfWorkViewer = lazy(() => import('./components/ScopeOfWorkViewer').then(m => ({ default: m.ScopeOfWorkViewer })));
@@ -457,6 +458,12 @@ export const App: React.FC = () => {
               </Box>
             )}
           </Box>
+        )}
+
+        {currentScreen === 'projects' && (
+          <Suspense fallback={<CircularProgress />}>
+            <ProjectManagementScreen />
+          </Suspense>
         )}
 
         {currentScreen === 'documents' && (

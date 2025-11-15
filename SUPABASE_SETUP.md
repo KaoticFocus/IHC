@@ -1,154 +1,182 @@
-# Supabase Integration Complete ✅
+# Supabase Setup for Project Management
 
-## Summary
+This document explains how to set up Supabase for project data management, including document and image storage.
 
-Supabase has been successfully integrated into the IHC Conversation Recorder application. The integration provides cloud sync, backup, authentication, and cross-device access while maintaining offline-first functionality.
+## Prerequisites
 
----
+- A Supabase account (https://supabase.com)
+- Your Supabase project URL and anon key
 
-## What Was Added
+## Database Schema Setup
 
-### **1. Core Services**
+Run the following SQL in your Supabase SQL Editor:
 
-- **`SupabaseService.ts`** - Supabase client initialization and configuration
-- **`HybridStorageService.ts`** - Hybrid storage that syncs between local (IndexedDB) and cloud (Supabase)
-- **`AuthContext.tsx`** - React context for authentication (sign in, sign up, sign out)
+```sql
+-- Create projects table
+CREATE TABLE IF NOT EXISTS projects (
+  id TEXT PRIMARY KEY,
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  description TEXT,
+  status TEXT NOT NULL DEFAULT 'planning' CHECK (status IN ('planning', 'in_progress', 'completed', 'on_hold', 'cancelled')),
+  client_name TEXT,
+  client_email TEXT,
+  client_phone TEXT,
+  address TEXT,
+  start_date TIMESTAMPTZ,
+  end_date TIMESTAMPTZ,
+  budget DECIMAL(10, 2),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
 
-### **2. UI Components**
+-- Create project_documents table
+CREATE TABLE IF NOT EXISTS project_documents (
+  id TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  type TEXT NOT NULL CHECK (type IN ('document', 'image', 'pdf', 'other')),
+  mime_type TEXT NOT NULL,
+  file_path TEXT NOT NULL,
+  file_size BIGINT NOT NULL,
+  description TEXT,
+  uploaded_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
 
-- **`AuthModal.tsx`** - Authentication modal (sign in, sign up, password reset)
-- **Updated `SettingsModal.tsx`** - Added Supabase configuration UI
-- **Updated `AppLayout.tsx`** - Added account icon and cloud sync indicator
+-- Create indexes for better query performance
+CREATE INDEX IF NOT EXISTS idx_projects_user_id ON projects(user_id);
+CREATE INDEX IF NOT EXISTS idx_projects_status ON projects(status);
+CREATE INDEX IF NOT EXISTS idx_project_documents_project_id ON project_documents(project_id);
 
-### **3. Database Schema**
+-- Enable Row Level Security (RLS)
+ALTER TABLE projects ENABLE ROW LEVEL SECURITY;
+ALTER TABLE project_documents ENABLE ROW LEVEL SECURITY;
 
-- **`supabase/schema.sql`** - Complete database schema with:
-  - Tables: users, leads, transcripts, recordings, documents, scope_of_work, user_settings
-  - Row Level Security (RLS) policies
-  - Indexes for performance
-  - Storage bucket setup instructions
+-- Create RLS policies for projects
+CREATE POLICY "Users can view their own projects"
+  ON projects FOR SELECT
+  USING (auth.uid() = user_id);
 
-### **4. Configuration**
+CREATE POLICY "Users can create their own projects"
+  ON projects FOR INSERT
+  WITH CHECK (auth.uid() = user_id);
 
-- **`.env.example`** - Template for environment variables
-- Updated `main.tsx` - Wrapped app with AuthProvider
-- Updated `App.tsx` - Integrated cloud sync and authentication
+CREATE POLICY "Users can update their own projects"
+  ON projects FOR UPDATE
+  USING (auth.uid() = user_id);
 
----
+CREATE POLICY "Users can delete their own projects"
+  ON projects FOR DELETE
+  USING (auth.uid() = user_id);
 
-## Features Enabled
+-- Create RLS policies for project_documents
+CREATE POLICY "Users can view documents of their own projects"
+  ON project_documents FOR SELECT
+  USING (
+    EXISTS (
+      SELECT 1 FROM projects
+      WHERE projects.id = project_documents.project_id
+      AND projects.user_id = auth.uid()
+    )
+  );
 
-✅ **Cloud Sync** - Automatic sync of leads, transcripts, and recordings  
-✅ **User Authentication** - Sign up, sign in, password reset  
-✅ **Cross-Device Access** - Access data from any device  
-✅ **Data Backup** - Automatic backup to cloud  
-✅ **Offline-First** - Works without internet, syncs when available  
-✅ **Security** - Row Level Security ensures users only see their own data  
+CREATE POLICY "Users can create documents for their own projects"
+  ON project_documents FOR INSERT
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM projects
+      WHERE projects.id = project_documents.project_id
+      AND projects.user_id = auth.uid()
+    )
+  );
 
----
+CREATE POLICY "Users can update documents of their own projects"
+  ON project_documents FOR UPDATE
+  USING (
+    EXISTS (
+      SELECT 1 FROM projects
+      WHERE projects.id = project_documents.project_id
+      AND projects.user_id = auth.uid()
+    )
+  );
 
-## Next Steps for You
-
-### **1. Set Up Supabase Database**
-
-1. Go to: https://supabase.com/dashboard/org/jsizauqoyprxwqaziodq
-2. Create a new project (or use existing)
-3. Go to **SQL Editor**
-4. Copy and paste contents of `supabase/schema.sql`
-5. Click **Run**
-
-### **2. Create Storage Buckets**
-
-1. Go to **Storage** in Supabase dashboard
-2. Create bucket: `recordings` (Private)
-3. Create bucket: `documents` (Private)
-4. Storage policies are included in the schema.sql
-
-### **3. Get API Credentials**
-
-1. Go to **Settings** → **API**
-2. Copy:
-   - **Project URL** (e.g., `https://xxxxx.supabase.co`)
-   - **anon/public key**
-
-### **4. Configure the App**
-
-**Option A: Environment Variables (Recommended)**
-```bash
-cd web
-cp .env.example .env.local
-# Edit .env.local with your credentials
+CREATE POLICY "Users can delete documents of their own projects"
+  ON project_documents FOR DELETE
+  USING (
+    EXISTS (
+      SELECT 1 FROM projects
+      WHERE projects.id = project_documents.project_id
+      AND projects.user_id = auth.uid()
+    )
+  );
 ```
 
-**Option B: Settings UI**
-1. Open the app
-2. Click Settings (gear icon)
-3. Scroll to "Cloud Sync (Supabase)"
-4. Enter URL and Anon Key
-5. Click Save
+## Storage Bucket Setup
 
-### **5. Test Authentication**
+1. Go to Storage in your Supabase dashboard
+2. Create a new bucket named `project-files`
+3. Set it to **Public** (or Private with proper policies)
+4. Configure the following policies:
 
-1. Click the Account icon in the top bar
-2. Sign up with email/password
-3. Check email for verification link
-4. Sign in and verify cloud sync is working
+### Storage Policies
 
----
+```sql
+-- Allow authenticated users to upload files to their own folder
+CREATE POLICY "Users can upload files to their own folder"
+ON storage.objects FOR INSERT
+WITH CHECK (
+  bucket_id = 'project-files' AND
+  auth.uid()::text = (storage.foldername(name))[1]
+);
 
-## How It Works
+-- Allow authenticated users to view files in their own folder
+CREATE POLICY "Users can view files in their own folder"
+ON storage.objects FOR SELECT
+USING (
+  bucket_id = 'project-files' AND
+  auth.uid()::text = (storage.foldername(name))[1]
+);
 
-### **Hybrid Storage Flow**
-
+-- Allow authenticated users to delete files in their own folder
+CREATE POLICY "Users can delete files in their own folder"
+ON storage.objects FOR DELETE
+USING (
+  bucket_id = 'project-files' AND
+  auth.uid()::text = (storage.foldername(name))[1]
+);
 ```
-User Action (Save Lead)
-    ↓
-1. Save to IndexedDB (Local) ← Always happens first
-    ↓
-2. Check: Supabase configured & user authenticated?
-    ↓
-    YES → Sync to Supabase Cloud
-    NO  → Use local storage only
+
+## Environment Variables
+
+Make sure your `.env` file contains:
+
+```env
+VITE_SUPABASE_URL=https://your-project-id.supabase.co
+VITE_SUPABASE_ANON_KEY=your-anon-key-here
 ```
 
-### **Sync Strategy**
+## Testing
 
-- **On Save**: Save locally first, then sync to cloud in background
-- **On App Load**: If authenticated, sync from cloud to local
-- **On Login**: Pull all cloud data to local storage
-- **Manual Sync**: User can trigger sync from Settings
+After setup, you should be able to:
 
----
+1. Sign in to the application
+2. Navigate to "Projects" in the menu
+3. Create a new project
+4. Upload documents and images
+5. View and manage your projects
 
-## Benefits
+## Troubleshooting
 
-### **For Users**
-- ✅ Never lose data (automatic backup)
-- ✅ Access from any device
-- ✅ Faster setup on new devices
-- ✅ Works offline, syncs when online
+### "Project management requires Supabase authentication"
+- Make sure you're signed in
+- Check that your Supabase URL and anon key are configured correctly
 
-### **For Development**
-- ✅ Scalable backend
-- ✅ Built-in authentication
-- ✅ Easy to add real-time features
-- ✅ Analytics-ready
+### "Failed to upload file"
+- Verify the `project-files` bucket exists
+- Check that storage policies are set correctly
+- Ensure the file size is within Supabase limits (default: 50MB)
 
----
-
-## Documentation
-
-See `SUPABASE_INTEGRATION.md` for complete setup instructions, API reference, and troubleshooting guide.
-
----
-
-## Status
-
-✅ **Integration Complete** - Ready for configuration and testing
-
-All code is in place. You just need to:
-1. Set up your Supabase project
-2. Run the SQL schema
-3. Configure credentials
-4. Start using cloud sync!
-
+### "Permission denied"
+- Check that RLS policies are enabled and configured correctly
+- Verify you're authenticated with the correct user account

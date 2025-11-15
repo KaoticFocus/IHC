@@ -23,6 +23,7 @@ import {
   LightMode as LightModeIcon,
   DarkMode as DarkModeIcon,
   Keyboard as KeyboardIcon,
+  Folder as FolderIcon,
 } from '@mui/icons-material';
 import { HelpTooltip } from './HelpTooltip';
 import { useAuth } from '../context/AuthContext';
@@ -74,6 +75,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
 
   const menuItems = [
     { text: 'Home', icon: <HomeIcon />, screen: 'main' },
+    { text: 'Projects', icon: <FolderIcon />, screen: 'projects' },
     { text: 'Documents', icon: <DescriptionIcon />, screen: 'documents' },
     { text: 'Transcripts', icon: <DescriptionIcon />, screen: 'transcripts' },
   ];
