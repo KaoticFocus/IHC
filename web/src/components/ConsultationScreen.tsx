@@ -30,7 +30,7 @@ import {
   Mic as MicIcon,
   PhotoCamera as PhotoCameraIcon,
 } from '@mui/icons-material';
-import { Consultation, ConsultationPhoto, CreateConsultationInput } from '../types/Consultation';
+import { Consultation, CreateConsultationInput } from '../types/Consultation';
 import ConsultationService from '../services/ConsultationService';
 import { useAuth } from '../context/AuthContext';
 
