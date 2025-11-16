@@ -38,14 +38,14 @@ class MockIDBRequest {
   }
 }
 
-global.indexedDB = {
+(globalThis as any).indexedDB = {
   open: vi.fn(() => new MockIDBRequest()),
   deleteDatabase: vi.fn(() => new MockIDBRequest()),
   cmp: vi.fn(),
 } as any;
 
 // Mock MediaRecorder
-global.MediaRecorder = vi.fn().mockImplementation(() => ({
+(global as any).MediaRecorder = vi.fn().mockImplementation(() => ({
   start: vi.fn(),
   stop: vi.fn(),
   pause: vi.fn(),
@@ -61,7 +61,7 @@ global.MediaRecorder = vi.fn().mockImplementation(() => ({
 })) as any;
 
 // Mock getUserMedia
-Object.defineProperty(global.navigator, 'mediaDevices', {
+Object.defineProperty(globalThis.navigator, 'mediaDevices', {
   writable: true,
   value: {
     getUserMedia: vi.fn(() => Promise.resolve({

@@ -6,7 +6,7 @@ export class ErrorService {
     
     if (error instanceof Error) {
       // Log to console in development
-      if (process.env.NODE_ENV === 'development') {
+      if (import.meta.env.DEV) {
         console.error(`[${context}]`, error);
       }
 
@@ -41,7 +41,7 @@ export class ErrorService {
     NotificationService.error(userMessage);
 
     // In production, send to error tracking service
-    if (process.env.NODE_ENV === 'production') {
+    if (import.meta.env.PROD) {
       // this.sendToErrorTracking(error, context);
     }
 
