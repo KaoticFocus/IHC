@@ -35,8 +35,6 @@ You should see a page with a list of authentication providers. Look for:
 │  Client ID: [empty or has value]        │
 │  Client Secret: [empty or has value]    │
 ├─────────────────────────────────────────┤
-│  Apple                                  │
-│  [Toggle: OFF]                          │
 ├─────────────────────────────────────────┤
 │  ... (other providers)                  │
 └─────────────────────────────────────────┘

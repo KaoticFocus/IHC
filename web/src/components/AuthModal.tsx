@@ -14,7 +14,7 @@ import {
   Alert,
   Divider,
 } from '@mui/material';
-import { Google, Apple } from '@mui/icons-material';
+import { Google } from '@mui/icons-material';
 import { useAuth } from '../context/AuthContext';
 import { ErrorService } from '../services/ErrorService';
 
@@ -116,7 +116,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ open, onClose }) => {
     }
   };
 
-  const handleOAuthSignIn = async (provider: 'google' | 'apple') => {
+  const handleOAuthSignIn = async (provider: 'google') => {
     setLoading(true);
     setError(null);
 
@@ -185,24 +185,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({ open, onClose }) => {
               >
                 Continue with Google
               </Button>
-              <Button
-                variant="outlined"
-                fullWidth
-                startIcon={<Apple />}
-                onClick={() => handleOAuthSignIn('apple')}
-                disabled={loading || !isSupabaseConfigured}
-                sx={{
-                  textTransform: 'none',
-                  py: 1.5,
-                  borderColor: 'divider',
-                  '&:hover': {
-                    borderColor: 'primary.main',
-                    backgroundColor: 'action.hover',
-                  },
-                }}
-              >
-                Continue with Apple
-              </Button>
             </Box>
             <Divider sx={{ my: 2 }}>
               <Typography variant="body2" color="text.secondary">
@@ -265,24 +247,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({ open, onClose }) => {
                 }}
               >
                 Sign up with Google
-              </Button>
-              <Button
-                variant="outlined"
-                fullWidth
-                startIcon={<Apple />}
-                onClick={() => handleOAuthSignIn('apple')}
-                disabled={loading || !isSupabaseConfigured}
-                sx={{
-                  textTransform: 'none',
-                  py: 1.5,
-                  borderColor: 'divider',
-                  '&:hover': {
-                    borderColor: 'primary.main',
-                    backgroundColor: 'action.hover',
-                  },
-                }}
-              >
-                Sign up with Apple
               </Button>
             </Box>
             <Divider sx={{ my: 2 }}>

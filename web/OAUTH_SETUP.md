@@ -1,6 +1,6 @@
 # OAuth Setup Guide
 
-This app supports Google and Apple sign-in via Supabase OAuth. Follow these steps to enable OAuth providers:
+This app supports Google sign-in via Supabase OAuth. Follow these steps to enable the Google OAuth provider:
 
 ## Google OAuth Setup
 
@@ -27,32 +27,12 @@ This app supports Google and Apple sign-in via Supabase OAuth. Follow these step
    - Click **"Save"** at the bottom of the page
    - **Verify**: The Google provider should show as "Enabled" with a green checkmark
 
-## Apple OAuth Setup
-
-1. **Create Apple Service ID:**
-   - Go to [Apple Developer Portal](https://developer.apple.com/)
-   - Navigate to "Certificates, Identifiers & Profiles"
-   - Create a new Service ID
-   - Enable "Sign in with Apple"
-   - Configure domains and redirect URLs:
-     - Domain: `supabase.co` (or your custom domain)
-     - Redirect URL: `https://xppnphkaeczptxuhmpuv.supabase.co/auth/v1/callback`
-   - Create a Key for Sign in with Apple
-   - Download the key file (.p8)
-
-2. **Configure in Supabase:**
-   - Go to your Supabase dashboard
-   - Navigate to Settings > Authentication > Providers
-   - Enable "Apple"
-   - Enter your Apple Service ID, Team ID, and upload the Key file
-   - Save
-
 ## Testing OAuth
 
 1. **Local Development:**
    - Make sure your `.env` file has `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`
    - Run `npm run dev`
-   - Click "Continue with Google" or "Continue with Apple" in the auth modal
+   - Click "Continue with Google" in the auth modal
    - You'll be redirected to the provider's login page
    - After authentication, you'll be redirected back to the app
 

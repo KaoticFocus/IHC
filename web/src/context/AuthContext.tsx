@@ -9,7 +9,7 @@ interface AuthContextType {
   loading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string, fullName?: string) => Promise<void>;
-  signInWithOAuth: (provider: 'google' | 'apple') => Promise<void>;
+  signInWithOAuth: (provider: 'google') => Promise<void>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
   updateProfile: (updates: { full_name?: string }) => Promise<void>;
@@ -121,7 +121,7 @@ export function AuthProvider({ children, supabaseUrl, supabaseAnonKey }: AuthPro
     NotificationService.success('Account created! Please check your email to verify your account.');
   };
 
-  const signInWithOAuth = async (provider: 'google' | 'apple') => {
+  const signInWithOAuth = async (provider: 'google') => {
     console.log(`[AuthContext] Starting OAuth sign-in with ${provider}...`);
     
     if (!supabase) {
