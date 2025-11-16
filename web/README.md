@@ -61,12 +61,20 @@ Create a `.env` file in the `web` directory with the following variables:
 ```env
 VITE_SUPABASE_URL=https://xppnphkaeczptxuhmpuv.supabase.co
 VITE_SUPABASE_ANON_KEY=your-anon-key-here
+VITE_OPENAI_API_KEY=your-openai-api-key-here
 ```
 
-To get your Supabase anon key:
+**Supabase Configuration:**
 1. Go to https://supabase.com/dashboard/project/xppnphkaeczptxuhmpuv/settings/api
 2. Copy the "anon" "public" key
-3. Paste it in your `.env` file
+3. Paste it in your `.env` file as `VITE_SUPABASE_ANON_KEY`
+
+**OpenAI Configuration:**
+1. Go to https://platform.openai.com/api-keys
+2. Create a new API key or use an existing one
+3. Paste it in your `.env` file as `VITE_OPENAI_API_KEY`
+
+**Note:** The OpenAI API key can also be set in the app Settings modal. If set in the `.env` file, it will be used automatically. If not set in `.env`, you can configure it through the Settings UI.
 
 ### App Settings
 

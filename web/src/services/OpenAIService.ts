@@ -5,8 +5,10 @@ class OpenAIService {
   private openai: OpenAI | null = null;
 
   async hasApiKey(): Promise<boolean> {
-    const apiKey = await StorageService.getSetting('openai_api_key');
-    return !!apiKey;
+    // Check environment variable first, then localStorage
+    const envApiKey = import.meta.env.VITE_OPENAI_API_KEY;
+    const storedApiKey = await StorageService.getSetting('openai_api_key');
+    return !!(envApiKey || storedApiKey);
   }
 
   async setApiKey(key: string): Promise<void> {
@@ -15,7 +17,11 @@ class OpenAIService {
   }
 
   async initialize(): Promise<void> {
-    const apiKey = await StorageService.getSetting('openai_api_key');
+    // Check environment variable first, then localStorage
+    const envApiKey = import.meta.env.VITE_OPENAI_API_KEY;
+    const storedApiKey = await StorageService.getSetting('openai_api_key');
+    const apiKey = envApiKey || storedApiKey;
+    
     if (apiKey && !this.openai) {
       this.openai = new OpenAI({ apiKey: apiKey });
     }
@@ -524,6 +530,102 @@ IMPORTANT RULES:
       action: parsedResponse.action,
       parameters: parameters,
     };
+  }
+
+  async generateImage(prompt: string, size: '256x256' | '512x512' | '1024x1024' = '512x512'): Promise<string> {
+    await this.initialize();
+    
+    if (!this.openai) {
+      throw new Error('OpenAI not initialized. Please set API key in settings.');
+    }
+
+    try {
+      const response = await this.openai.images.generate({
+        model: 'dall-e-3',
+        prompt: prompt,
+        n: 1,
+        size: size === '256x256' ? '1024x1024' : size === '512x512' ? '1024x1024' : '1024x1024', // DALL-E 3 only supports 1024x1024
+        quality: 'standard',
+        style: 'natural',
+      });
+
+      const imageUrl = response.data?.[0]?.url;
+      if (!imageUrl) {
+        throw new Error('No image URL returned from OpenAI');
+      }
+
+      return imageUrl;
+    } catch (error: any) {
+      console.error('Error generating image:', error);
+      if (error.message?.includes('dall-e-3')) {
+        // Fallback to DALL-E 2 if DALL-E 3 is not available
+        try {
+          const response = await this.openai.images.generate({
+            model: 'dall-e-2',
+            prompt: prompt,
+            n: 1,
+            size: size,
+          });
+          const imageUrl = response.data?.[0]?.url;
+          if (!imageUrl) {
+            throw new Error('No image URL returned from OpenAI');
+          }
+          return imageUrl;
+        } catch (fallbackError: any) {
+          throw new Error(`Failed to generate image: ${fallbackError.message || 'Unknown error'}`);
+        }
+      }
+      throw new Error(`Failed to generate image: ${error.message || 'Unknown error'}`);
+    }
+  }
+
+  async chatCompletion(
+    conversationHistory: Array<{ role: 'user' | 'assistant'; content: string }>,
+    context: string = 'main'
+  ): Promise<string> {
+    await this.initialize();
+    
+    if (!this.openai) {
+      throw new Error('OpenAI not initialized. Please set API key in settings.');
+    }
+
+    const systemMessage = `You are Flow, a helpful AI assistant for the IHC Conversation Recorder app - a contractor tool for managing projects, consultations, and photos. 
+The user is currently on the "${context}" screen.
+
+You can help with:
+- Answering questions about the app
+- Providing general information and advice
+- Having natural conversations
+- Explaining features and functionality
+
+Be friendly, conversational, and helpful. Keep responses concise but informative.`;
+
+    try {
+      const messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }> = [
+        { role: 'system', content: systemMessage },
+        ...conversationHistory.map(msg => ({
+          role: msg.role as 'user' | 'assistant',
+          content: msg.content,
+        })),
+      ];
+
+      const completion = await this.openai.chat.completions.create({
+        model: 'gpt-4',
+        messages: messages,
+        temperature: 0.7,
+        max_tokens: 500,
+      });
+
+      const response = completion.choices[0]?.message?.content;
+      if (!response) {
+        throw new Error('No response from OpenAI');
+      }
+
+      return response;
+    } catch (error: any) {
+      console.error('Error in chat completion:', error);
+      throw new Error(`Failed to get chat response: ${error.message || 'Unknown error'}`);
+    }
   }
 }
 

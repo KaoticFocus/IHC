@@ -3,16 +3,29 @@ import { SupabaseClient, User, Session } from '@supabase/supabase-js';
 import { getSupabaseClient, initSupabase, isSupabaseConfigured } from '../services/SupabaseService';
 import { NotificationService } from '../services/NotificationService';
 
+export interface UserProfile {
+  id: string;
+  email?: string;
+  full_name?: string;
+  first_name?: string;
+  last_name?: string;
+  phone?: string;
+  work_email?: string;
+  avatar_url?: string;
+}
+
 interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
+  profile: UserProfile | null;
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string, fullName?: string) => Promise<void>;
   signInWithOAuth: (provider: 'google') => Promise<void>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
-  updateProfile: (updates: { full_name?: string }) => Promise<void>;
+  updateProfile: (updates: Partial<UserProfile>) => Promise<void>;
+  refreshProfile: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -36,6 +49,51 @@ export function AuthProvider({ children, supabaseUrl, supabaseAnonKey }: AuthPro
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [supabase, setSupabase] = useState<SupabaseClient | null>(null);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+
+  const loadUserProfile = async (client: SupabaseClient, userId: string) => {
+    try {
+      const { data, error } = await client
+        .from('users')
+        .select('*')
+        .eq('id', userId)
+        .single();
+
+      if (error && error.code !== 'PGRST116') {
+        // PGRST116 = no rows returned, which is OK for new users
+        console.error('Error loading profile:', error);
+        return;
+      }
+
+      if (data) {
+        setProfile({
+          id: data.id,
+          email: data.email,
+          full_name: data.full_name,
+          first_name: data.first_name,
+          last_name: data.last_name,
+          phone: data.phone,
+          work_email: data.work_email,
+          avatar_url: data.avatar_url,
+        });
+      } else {
+        // Create profile if it doesn't exist
+        const { data: userData } = await client.auth.getUser();
+        if (userData?.user) {
+          const { error: insertError } = await client.from('users').insert({
+            id: userId,
+            email: userData.user.email,
+            full_name: userData.user.user_metadata?.full_name,
+          });
+          if (!insertError) {
+            await loadUserProfile(client, userId);
+          }
+        }
+      }
+    } catch (err) {
+      console.error('Error loading user profile:', err);
+    }
+  };
 
   useEffect(() => {
     let client: SupabaseClient | null = null;
@@ -54,19 +112,27 @@ export function AuthProvider({ children, supabaseUrl, supabaseAnonKey }: AuthPro
       return;
     }
 
-    // Get initial session
-    client.auth.getSession().then(({ data: { session } }) => {
+    // Get initial session and profile
+    client.auth.getSession().then(async ({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
+      if (session?.user) {
+        await loadUserProfile(client!, session.user.id);
+      }
       setLoading(false);
     });
 
     // Listen for auth changes
     const {
       data: { subscription },
-    } = client.auth.onAuthStateChange((_event, session) => {
+    } = client.auth.onAuthStateChange(async (_event, session) => {
       setSession(session);
       setUser(session?.user ?? null);
+      if (session?.user) {
+        await loadUserProfile(client!, session.user.id);
+      } else {
+        setProfile(null);
+      }
       setLoading(false);
     });
 
@@ -208,24 +274,45 @@ export function AuthProvider({ children, supabaseUrl, supabaseAnonKey }: AuthPro
     NotificationService.success('Password reset email sent!');
   };
 
-  const updateProfile = async (updates: { full_name?: string }) => {
+  const refreshProfile = async () => {
+    if (!supabase || !user) {
+      return;
+    }
+    await loadUserProfile(supabase, user.id);
+  };
+
+  const updateProfile = async (updates: Partial<UserProfile>) => {
     if (!supabase || !user) {
       throw new Error('Supabase not configured or user not authenticated');
     }
 
+    // Prepare update data (exclude id from updates)
+    const { id, ...updateData } = updates;
+    
+    // Update full_name if first_name or last_name changed
+    if (updates.first_name || updates.last_name) {
+      const firstName = updates.first_name ?? profile?.first_name ?? '';
+      const lastName = updates.last_name ?? profile?.last_name ?? '';
+      updateData.full_name = `${firstName} ${lastName}`.trim() || undefined;
+    }
+
     const { error } = await supabase
       .from('users')
-      .update(updates)
+      .update(updateData)
       .eq('id', user.id);
 
     if (error) throw error;
 
-    // Update auth metadata
-    const { error: authError } = await supabase.auth.updateUser({
-      data: updates,
-    });
+    // Update auth metadata (only full_name)
+    if (updateData.full_name) {
+      const { error: authError } = await supabase.auth.updateUser({
+        data: { full_name: updateData.full_name },
+      });
+      if (authError) console.warn('Failed to update auth metadata:', authError);
+    }
 
-    if (authError) throw authError;
+    // Reload profile
+    await loadUserProfile(supabase, user.id);
 
     NotificationService.success('Profile updated successfully');
   };
@@ -234,12 +321,14 @@ export function AuthProvider({ children, supabaseUrl, supabaseAnonKey }: AuthPro
     user,
     session,
     loading,
+    profile,
     signIn,
     signUp,
     signInWithOAuth,
     signOut,
     resetPassword,
     updateProfile,
+    refreshProfile,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -29,9 +29,11 @@ import { AIAnalysis } from './types/AIAnalysis';
 import ConsultationService from './services/ConsultationService';
 import ProjectManagementService from './services/ProjectManagementService';
 import './utils/supabaseDiagnostics'; // Load diagnostics utility
+import { SplashScreen } from './components/SplashScreen';
 
 export const App: React.FC = () => {
   const auth = useAuth();
+  const [showSplash, setShowSplash] = useState(true);
   const [currentScreen, setCurrentScreen] = useState('main');
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [authOpen, setAuthOpen] = useState(false);
@@ -552,16 +554,21 @@ export const App: React.FC = () => {
   }
 
   return (
-    <TooltipProvider>
-      <Suspense fallback={
-        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}>
-          <CircularProgress />
-        </Box>
-      }>
-        <AppLayout
-          onScreenChange={handleScreenChange}
-          onSettingsClick={() => setSettingsOpen(true)}
-        >
+    <>
+      {showSplash && (
+        <SplashScreen onComplete={() => setShowSplash(false)} />
+      )}
+      <TooltipProvider>
+        <Suspense fallback={
+          <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}>
+            <CircularProgress />
+          </Box>
+        }>
+          <AppLayout
+            onScreenChange={handleScreenChange}
+            onSettingsClick={() => setSettingsOpen(true)}
+            currentScreen={currentScreen}
+          >
         {currentScreen === 'main' && (
           <Box>
             <Box sx={{ mb: 3 }}>

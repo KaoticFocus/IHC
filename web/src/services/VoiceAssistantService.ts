@@ -8,17 +8,20 @@ export interface AssistantResponse {
   action?: string;
   parameters?: Record<string, any>;
   audioBlob?: Blob;
+  isConversation?: boolean;
 }
 
 class VoiceAssistantService {
   private currentContext: string = 'main';
   private commandHistory: string[] = [];
+  private conversationHistory: Array<{ role: 'user' | 'assistant'; content: string }> = [];
+  private isConversationMode: boolean = false;
 
   setContext(context: string) {
     this.currentContext = context;
   }
 
-  async processVoiceCommand(recordingId: string): Promise<AssistantResponse> {
+  async processVoiceCommand(recordingId: string, isConversation: boolean = false): Promise<AssistantResponse> {
     try {
       const audioBlob = await StorageService.getRecording(recordingId);
       if (!audioBlob) {
@@ -33,15 +36,24 @@ class VoiceAssistantService {
         this.commandHistory.shift();
       }
 
-      const analysisResult = await OpenAIService.analyzeVoiceCommand(commandText, this.currentContext);
-      
-      const response: AssistantResponse = {
-        text: analysisResult.response,
-        transcription: commandText,
-        shouldExecute: analysisResult.shouldExecute || false,
-        action: analysisResult.action,
-        parameters: analysisResult.parameters,
-      };
+      let response: AssistantResponse;
+
+      if (isConversation || this.isConversationMode) {
+        // Conversational mode - use chat API
+        response = await this.processConversation(commandText);
+      } else {
+        // Command mode - analyze for actions
+        const analysisResult = await OpenAIService.analyzeVoiceCommand(commandText, this.currentContext);
+        
+        response = {
+          text: analysisResult.response,
+          transcription: commandText,
+          shouldExecute: analysisResult.shouldExecute || false,
+          action: analysisResult.action,
+          parameters: analysisResult.parameters,
+          isConversation: false,
+        };
+      }
 
       if (response.text) {
         try {
@@ -59,8 +71,72 @@ class VoiceAssistantService {
         text: 'Sorry, I had trouble understanding that. Could you please try again?',
         transcription: '',
         shouldExecute: false,
+        isConversation: isConversation || this.isConversationMode,
       };
     }
+  }
+
+  private async processConversation(userMessage: string): Promise<AssistantResponse> {
+    try {
+      // Add user message to conversation history
+      this.conversationHistory.push({ role: 'user', content: userMessage });
+
+      // Check if user wants to exit conversation mode
+      const exitPhrases = ['exit conversation', 'stop talking', 'end conversation', 'back to commands'];
+      if (exitPhrases.some(phrase => userMessage.toLowerCase().includes(phrase))) {
+        this.isConversationMode = false;
+        this.conversationHistory = [];
+        return {
+          text: 'Exiting conversation mode. Say "Hey Flow" followed by a command, or click the mic to start a conversation.',
+          transcription: userMessage,
+          shouldExecute: false,
+          isConversation: false,
+        };
+      }
+
+      // Use OpenAI Chat API for conversation
+      const chatResponse = await OpenAIService.chatCompletion(
+        this.conversationHistory,
+        this.currentContext
+      );
+
+      // Add assistant response to history
+      this.conversationHistory.push({ role: 'assistant', content: chatResponse });
+
+      // Keep conversation history manageable (last 10 exchanges)
+      if (this.conversationHistory.length > 20) {
+        this.conversationHistory = this.conversationHistory.slice(-20);
+      }
+
+      return {
+        text: chatResponse,
+        transcription: userMessage,
+        shouldExecute: false,
+        isConversation: true,
+      };
+    } catch (error) {
+      console.error('Error processing conversation:', error);
+      return {
+        text: 'I had trouble processing that. Could you rephrase?',
+        transcription: userMessage,
+        shouldExecute: false,
+        isConversation: true,
+      };
+    }
+  }
+
+  startConversationMode() {
+    this.isConversationMode = true;
+    this.conversationHistory = [];
+  }
+
+  stopConversationMode() {
+    this.isConversationMode = false;
+    this.conversationHistory = [];
+  }
+
+  isInConversationMode(): boolean {
+    return this.isConversationMode;
   }
 
   getCommandHistory(): string[] {

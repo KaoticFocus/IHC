@@ -7,6 +7,8 @@ import {
   Card,
   CardContent,
   Button,
+  useMediaQuery,
+  useTheme,
 } from '@mui/material';
 import {
   Description as DescriptionIcon,
@@ -29,6 +31,10 @@ export const Dashboard: React.FC<DashboardProps> = ({
   onNavigate,
   onStartRecording,
 }) => {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const isTablet = useMediaQuery(theme.breakpoints.between('sm', 'md'));
+
   const stats = useMemo(() => {
     const totalTranscripts = transcripts.length;
     const totalWords = transcripts.reduce((sum, t) => sum + t.text.split(' ').length, 0);
@@ -46,8 +52,12 @@ export const Dashboard: React.FC<DashboardProps> = ({
   };
 
   return (
-    <Box sx={{ p: 3 }}>
-      <Typography variant="h4" gutterBottom sx={{ mb: 3 }}>
+    <Box sx={{ p: { xs: 2, sm: 3 }, width: '100%', maxWidth: '100%' }}>
+      <Typography 
+        variant={isMobile ? 'h5' : 'h4'} 
+        gutterBottom 
+        sx={{ mb: { xs: 2, sm: 3 }, fontSize: { xs: '1.5rem', sm: '2rem' } }}
+      >
         Dashboard
       </Typography>
 
@@ -80,21 +90,23 @@ export const Dashboard: React.FC<DashboardProps> = ({
       )}
 
       {/* Stats Grid */}
-      <Grid container spacing={3} sx={{ mb: 3 }}>
+      <Grid container spacing={{ xs: 2, sm: 3 }} sx={{ mb: { xs: 2, sm: 3 } }}>
         <Grid item xs={12} sm={6} md={6}>
           <Card>
-            <CardContent>
-              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <Box>
-                  <Typography color="text.secondary" gutterBottom>
+            <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexDirection: { xs: 'column', sm: 'row' }, gap: { xs: 1, sm: 0 } }}>
+                <Box sx={{ textAlign: { xs: 'center', sm: 'left' } }}>
+                  <Typography color="text.secondary" gutterBottom sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
                     Transcripts
                   </Typography>
-                  <Typography variant="h4">{stats.totalTranscripts}</Typography>
-                  <Typography variant="body2" color="text.secondary">
+                  <Typography variant={isMobile ? 'h5' : 'h4'} sx={{ fontSize: { xs: '1.5rem', sm: '2rem' } }}>
+                    {stats.totalTranscripts}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
                     {stats.totalWords.toLocaleString()} words
                   </Typography>
                 </Box>
-                <DescriptionIcon sx={{ fontSize: 40, color: 'info.main' }} />
+                <DescriptionIcon sx={{ fontSize: { xs: 32, sm: 40 }, color: 'info.main' }} />
               </Box>
             </CardContent>
           </Card>
@@ -102,17 +114,21 @@ export const Dashboard: React.FC<DashboardProps> = ({
       </Grid>
 
       {/* Quick Actions */}
-      <Paper sx={{ p: 2, mb: 3 }}>
-        <Typography variant="h6" gutterBottom>
+      <Paper sx={{ p: { xs: 1.5, sm: 2 }, mb: { xs: 2, sm: 3 } }}>
+        <Typography variant={isMobile ? 'subtitle1' : 'h6'} gutterBottom sx={{ fontSize: { xs: '0.875rem', sm: '1.25rem' }, mb: { xs: 1, sm: 2 } }}>
           Quick Actions
         </Typography>
-        <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+        <Box sx={{ display: 'flex', gap: { xs: 1.5, sm: 2 }, flexWrap: 'wrap', flexDirection: { xs: 'column', sm: 'row' } }}>
           <Button
             variant="contained"
             startIcon={<MicIcon />}
             onClick={onStartRecording}
             disabled={isRecording}
-            size="large"
+            size={isMobile ? 'medium' : 'large'}
+            fullWidth={isMobile}
+            sx={{
+              minHeight: { xs: 44, sm: 48 },
+            }}
           >
             {isRecording ? 'Recording...' : 'Start Recording'}
           </Button>
@@ -120,7 +136,11 @@ export const Dashboard: React.FC<DashboardProps> = ({
             variant="outlined"
             startIcon={<DescriptionIcon />}
             onClick={() => onNavigate('transcripts')}
-            size="large"
+            size={isMobile ? 'medium' : 'large'}
+            fullWidth={isMobile}
+            sx={{
+              minHeight: { xs: 44, sm: 48 },
+            }}
           >
             View Transcripts
           </Button>
@@ -131,16 +151,16 @@ export const Dashboard: React.FC<DashboardProps> = ({
       {stats.totalTranscripts === 0 && (
         <Paper
           sx={{
-            p: 6,
+            p: { xs: 4, sm: 6 },
             textAlign: 'center',
             bgcolor: 'background.default',
           }}
         >
-          <MicIcon sx={{ fontSize: 80, color: 'text.secondary', mb: 2 }} />
-          <Typography variant="h5" gutterBottom>
+          <MicIcon sx={{ fontSize: { xs: 60, sm: 80 }, color: 'text.secondary', mb: 2 }} />
+          <Typography variant={isMobile ? 'h6' : 'h5'} gutterBottom sx={{ fontSize: { xs: '1.125rem', sm: '1.5rem' } }}>
             Get Started
           </Typography>
-          <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
+          <Typography variant="body1" color="text.secondary" sx={{ mb: { xs: 2, sm: 3 }, fontSize: { xs: '0.875rem', sm: '1rem' } }}>
             Start by recording your first conversation
           </Typography>
           <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center' }}>
@@ -148,7 +168,10 @@ export const Dashboard: React.FC<DashboardProps> = ({
               variant="contained"
               startIcon={<MicIcon />}
               onClick={onStartRecording}
-              size="large"
+              size={isMobile ? 'medium' : 'large'}
+              sx={{
+                minHeight: { xs: 44, sm: 48 },
+              }}
             >
               Start Recording
             </Button>

@@ -12,6 +12,11 @@ CREATE TABLE IF NOT EXISTS public.users (
   id UUID REFERENCES auth.users(id) PRIMARY KEY,
   email TEXT,
   full_name TEXT,
+  first_name TEXT,
+  last_name TEXT,
+  phone TEXT,
+  work_email TEXT,
+  avatar_url TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -266,6 +271,9 @@ CREATE POLICY "Users can manage own project documents"
 -- Bucket for project files
 -- INSERT INTO storage.buckets (id, name, public) VALUES ('project-files', 'project-files', false);
 
+-- Bucket for user avatars
+-- INSERT INTO storage.buckets (id, name, public) VALUES ('avatars', 'avatars', true);
+
 -- Storage Policies
 -- CREATE POLICY "Users can upload own recordings"
 --   ON storage.objects FOR INSERT
@@ -314,6 +322,23 @@ CREATE POLICY "Users can manage own project documents"
 -- CREATE POLICY "Users can delete own project files"
 --   ON storage.objects FOR DELETE
 --   USING (bucket_id = 'project-files' AND auth.uid()::text = (storage.foldername(name))[1]);
+
+-- Storage Policies for avatars bucket
+-- CREATE POLICY "Users can upload own avatar"
+--   ON storage.objects FOR INSERT
+--   WITH CHECK (bucket_id = 'avatars' AND auth.uid()::text = (storage.foldername(name))[1]);
+
+-- CREATE POLICY "Anyone can view avatars"
+--   ON storage.objects FOR SELECT
+--   USING (bucket_id = 'avatars');
+
+-- CREATE POLICY "Users can update own avatar"
+--   ON storage.objects FOR UPDATE
+--   USING (bucket_id = 'avatars' AND auth.uid()::text = (storage.foldername(name))[1]);
+
+-- CREATE POLICY "Users can delete own avatar"
+--   ON storage.objects FOR DELETE
+--   USING (bucket_id = 'avatars' AND auth.uid()::text = (storage.foldername(name))[1]);
 
 -- Functions for updated_at timestamps
 CREATE OR REPLACE FUNCTION update_updated_at_column()

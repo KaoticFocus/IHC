@@ -9,6 +9,8 @@ import {
   ListItemText,
   Collapse,
   Chip,
+  useMediaQuery,
+  useTheme,
 } from '@mui/material';
 import {
   Mic as MicIcon,
@@ -19,6 +21,7 @@ import VoiceAssistantService, { AssistantResponse } from '../services/VoiceAssis
 import AudioService from '../services/AudioService';
 import ExtensionService from '../services/ExtensionService';
 import CommandProcessor from '../services/CommandProcessor';
+import WakeWordService from '../services/WakeWordService';
 import { HelpTooltip } from './HelpTooltip';
 
 interface VoiceAssistantProps {
@@ -27,6 +30,9 @@ interface VoiceAssistantProps {
 }
 
 export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({ currentScreen, onNavigate }) => {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const isTablet = useMediaQuery(theme.breakpoints.between('sm', 'md'));
   const [isListening, setIsListening] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
@@ -35,13 +41,44 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({ currentScreen, o
   const [commandHistory, setCommandHistory] = useState<string[]>([]);
   const [actionFeedback, setActionFeedback] = useState<string>('');
   const [extensionAvailable, setExtensionAvailable] = useState(false);
+  const [isListeningForWakeWord, setIsListeningForWakeWord] = useState(false);
+  const [isWaitingForCommand, setIsWaitingForCommand] = useState(false);
+  const [isConversationMode, setIsConversationMode] = useState(false);
+  const [isMinimized, setIsMinimized] = useState(isMobile);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const handleVoiceCommandRef = useRef<(startConversation?: boolean) => Promise<void>>();
+
+  const startWakeWordListening = async () => {
+    try {
+      await WakeWordService.startListeningForWakeWord(() => {
+        // Wake word detected!
+        setIsListeningForWakeWord(false);
+        setIsWaitingForCommand(true);
+        // Automatically start listening for command
+        setTimeout(() => {
+          handleVoiceCommandRef.current?.(false);
+        }, 500);
+      });
+      setIsListeningForWakeWord(true);
+    } catch (error) {
+      console.error('Failed to start wake word listening:', error);
+      // Fallback: user can still click mic button
+    }
+  };
 
   useEffect(() => {
     VoiceAssistantService.setContext(currentScreen);
     
     // Check for extension availability
     setExtensionAvailable(ExtensionService.isExtensionAvailable());
+
+    // Start listening for wake word on mount
+    startWakeWordListening();
+
+    return () => {
+      // Cleanup wake word listening on unmount
+      WakeWordService.stopListeningForWakeWord();
+    };
   }, [currentScreen]);
 
   useEffect(() => {
@@ -67,7 +104,7 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({ currentScreen, o
     };
   }, [isListening]);
 
-  const handleVoiceCommand = async () => {
+  const handleVoiceCommand = async (startConversation: boolean = false) => {
     if (isListening) {
       await stopListening();
       return;
@@ -75,7 +112,13 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({ currentScreen, o
 
     try {
       setIsListening(true);
-      setIsProcessing(true);
+      setIsProcessing(false);
+      setIsWaitingForCommand(false);
+      
+      if (startConversation) {
+        VoiceAssistantService.startConversationMode();
+        setIsConversationMode(true);
+      }
 
       await AudioService.startRecording();
       
@@ -83,8 +126,14 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({ currentScreen, o
       console.error('Error starting voice command:', error);
       setIsListening(false);
       setIsProcessing(false);
+      setIsWaitingForCommand(false);
     }
   };
+
+  // Store ref for wake word callback
+  useEffect(() => {
+    handleVoiceCommandRef.current = handleVoiceCommand;
+  }, [isListening]);
 
   const stopListening = async () => {
     try {
@@ -95,14 +144,17 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({ currentScreen, o
       const recordingId = await AudioService.stopRecording();
       
       if (recordingId) {
-        const response = await VoiceAssistantService.processVoiceCommand(recordingId);
+        const isConversation = isConversationMode || VoiceAssistantService.isInConversationMode();
+        const response = await VoiceAssistantService.processVoiceCommand(recordingId, isConversation);
         setLastResponse(response);
+        
+        setIsConversationMode(response.isConversation || false);
         
         const history = VoiceAssistantService.getCommandHistory();
         setCommandHistory(history);
         
-        // Execute actions based on response
-        if (response.shouldExecute && response.action) {
+        // Execute actions based on response (only in command mode)
+        if (!isConversation && response.shouldExecute && response.action) {
           await executeAction(response);
         }
         
@@ -110,11 +162,26 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({ currentScreen, o
           setIsSpeaking(true);
           const audioUrl = URL.createObjectURL(response.audioBlob);
           audioRef.current = new Audio(audioUrl);
-          audioRef.current.onended = () => {
+          audioRef.current.onended = async () => {
             URL.revokeObjectURL(audioUrl);
             setIsSpeaking(false);
+            
+            // If in conversation mode, automatically start listening again
+            if (isConversationMode || VoiceAssistantService.isInConversationMode()) {
+              setTimeout(() => {
+                handleVoiceCommand(true);
+              }, 500);
+            } else {
+              // Resume wake word listening
+              await startWakeWordListening();
+            }
           };
           await audioRef.current.play();
+        } else {
+          // Resume wake word listening if not in conversation mode
+          if (!isConversationMode && !VoiceAssistantService.isInConversationMode()) {
+            await startWakeWordListening();
+          }
         }
       }
       
@@ -122,6 +189,10 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({ currentScreen, o
     } catch (error) {
       console.error('Error processing voice command:', error);
       setIsProcessing(false);
+      // Resume wake word listening on error
+      if (!isConversationMode) {
+        await startWakeWordListening();
+      }
     }
   };
 
@@ -155,29 +226,83 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({ currentScreen, o
     }
   };
 
+  // On mobile, show minimized floating button when minimized
+  if (isMobile && isMinimized && !isListening && !isProcessing) {
+    return (
+      <Box 
+        sx={{ 
+          position: 'fixed', 
+          bottom: { xs: 16, sm: 20 }, 
+          right: { xs: 16, sm: 20 }, 
+          zIndex: 1000 
+        }}
+      >
+        <IconButton
+          onClick={() => setIsMinimized(false)}
+          sx={{
+            width: { xs: 56, sm: 64 },
+            height: { xs: 56, sm: 64 },
+            bgcolor: 'primary.main',
+            color: 'white',
+            boxShadow: 3,
+            '&:hover': {
+              bgcolor: 'primary.dark',
+            },
+          }}
+          aria-label="Open voice assistant"
+        >
+          <MicIcon sx={{ fontSize: { xs: 28, sm: 32 } }} />
+        </IconButton>
+      </Box>
+    );
+  }
+
   return (
-    <Box sx={{ position: 'fixed', bottom: 20, right: 20, zIndex: 1000 }}>
+    <Box 
+      sx={{ 
+        position: 'fixed', 
+        bottom: { xs: 16, sm: 20 }, 
+        right: { xs: 16, sm: 20 }, 
+        left: { xs: 16, sm: 'auto' },
+        zIndex: 1000,
+        maxWidth: { xs: 'calc(100% - 32px)', sm: 300 },
+      }}
+    >
       <Paper
-        elevation={3}
+        elevation={isMobile ? 8 : 3}
         role="region"
         aria-label="Voice Assistant"
         sx={{
-          p: 2,
-          borderRadius: 2,
+          p: { xs: 1.5, sm: 2 },
+          borderRadius: { xs: 3, sm: 2 },
           backgroundColor: 'background.paper',
-          width: 300,
+          width: '100%',
+          maxHeight: { xs: 'calc(100vh - 100px)', sm: 'none' },
+          overflowY: 'auto',
         }}
       >
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
-          <Typography variant="h6">Voice Assistant</Typography>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            {extensionAvailable && (
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: { xs: 1.5, sm: 2 }, alignItems: 'center' }}>
+          <Typography variant={isMobile ? 'subtitle2' : 'h6'} sx={{ fontSize: { xs: '0.875rem', sm: '1.25rem' } }}>
+            {isMobile ? 'Flow' : 'Voice Assistant'}
+          </Typography>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+            {extensionAvailable && !isMobile && (
               <Chip 
                 label="Extension" 
                 size="small" 
                 color="success" 
-                sx={{ fontSize: '0.7rem' }}
+                sx={{ fontSize: '0.7rem', display: { xs: 'none', sm: 'flex' } }}
               />
+            )}
+            {isMobile && (
+              <IconButton
+                size="small"
+                onClick={() => setIsMinimized(true)}
+                sx={{ minWidth: 32, minHeight: 32 }}
+                aria-label="Minimize"
+              >
+                <Typography sx={{ fontSize: '0.75rem' }}>−</Typography>
+              </IconButton>
             )}
             <HelpTooltip title="View command history">
               <IconButton
@@ -185,8 +310,9 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({ currentScreen, o
                 onClick={() => setShowHistory(!showHistory)}
                 aria-label="Toggle command history"
                 aria-expanded={showHistory}
+                sx={{ minWidth: { xs: 32, sm: 40 }, minHeight: { xs: 32, sm: 40 } }}
               >
-                <HistoryIcon />
+                <HistoryIcon sx={{ fontSize: { xs: 18, sm: 20 } }} />
               </IconButton>
             </HelpTooltip>
           </Box>
@@ -211,40 +337,67 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({ currentScreen, o
         )}
 
         {lastResponse && (
-          <Box sx={{ mb: 2, p: 2, bgcolor: 'action.hover', borderRadius: 1 }}>
-            <Typography variant="caption" color="text.secondary">
+          <Box sx={{ mb: { xs: 1.5, sm: 2 }, p: { xs: 1.5, sm: 2 }, bgcolor: 'action.hover', borderRadius: 1 }}>
+            <Typography variant="caption" color="text.secondary" sx={{ fontSize: { xs: '0.7rem', sm: '0.75rem' } }}>
               You said:
             </Typography>
-            <Typography variant="body2" sx={{ mb: 1 }}>
+            <Typography variant="body2" sx={{ mb: 1, fontSize: { xs: '0.8rem', sm: '0.875rem' } }}>
               {lastResponse.transcription}
             </Typography>
-            <Typography variant="caption" color="text.secondary">
+            <Typography variant="caption" color="text.secondary" sx={{ fontSize: { xs: '0.7rem', sm: '0.75rem' } }}>
               Assistant:
             </Typography>
-            <Typography variant="body2" sx={{ fontStyle: 'italic' }}>
+            <Typography variant="body2" sx={{ fontStyle: 'italic', fontSize: { xs: '0.8rem', sm: '0.875rem' } }}>
               {lastResponse.text}
             </Typography>
           </Box>
         )}
 
+        {isWaitingForCommand && (
+          <Box sx={{ mb: { xs: 1.5, sm: 2 }, textAlign: 'center', p: { xs: 1.5, sm: 2 }, bgcolor: 'info.light', borderRadius: 1 }}>
+            <Typography variant="body2" color="info.dark" sx={{ fontWeight: 'bold', fontSize: { xs: '0.8rem', sm: '0.875rem' } }}>
+              👂 Listening for your command...
+            </Typography>
+            <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block', fontSize: { xs: '0.7rem', sm: '0.75rem' } }}>
+              Say your command or click mic to start a conversation
+            </Typography>
+          </Box>
+        )}
+
+        {isListeningForWakeWord && !isListening && (
+          <Box sx={{ mb: { xs: 1.5, sm: 2 }, textAlign: 'center' }}>
+            <Typography variant="caption" color="text.secondary" sx={{ fontSize: { xs: '0.7rem', sm: '0.75rem' } }}>
+              💤 Listening for "Hey Flow"...
+            </Typography>
+          </Box>
+        )}
+
+        {isConversationMode && (
+          <Box sx={{ mb: { xs: 1.5, sm: 2 }, textAlign: 'center', p: { xs: 1, sm: 1.5 }, bgcolor: 'success.light', borderRadius: 1 }}>
+            <Typography variant="caption" color="success.dark" sx={{ fontWeight: 'bold', fontSize: { xs: '0.7rem', sm: '0.75rem' } }}>
+              💬 Conversation Mode Active
+            </Typography>
+          </Box>
+        )}
+
         {isListening && (
-          <Box sx={{ mb: 2, textAlign: 'center' }}>
-            <Typography variant="body2" color="error" sx={{ mb: 1, fontWeight: 'bold' }}>
+          <Box sx={{ mb: { xs: 1.5, sm: 2 }, textAlign: 'center' }}>
+            <Typography variant="body2" color="error" sx={{ mb: 1, fontWeight: 'bold', fontSize: { xs: '0.8rem', sm: '0.875rem' } }}>
               🔴 RECORDING...
             </Typography>
-            <Box sx={{ display: 'flex', justifyContent: 'center', gap: 0.5, height: 30, alignItems: 'center' }}>
+            <Box sx={{ display: 'flex', justifyContent: 'center', gap: 0.5, height: { xs: 24, sm: 30 }, alignItems: 'center' }}>
               {[...Array(5)].map((_, i) => (
                 <Box
                   key={i}
                   sx={{
-                    width: 4,
+                    width: { xs: 3, sm: 4 },
                     bgcolor: 'error.main',
                     borderRadius: 1,
                     animation: `waveform 1s ease-in-out infinite`,
                     animationDelay: `${i * 0.1}s`,
                     '@keyframes waveform': {
-                      '0%, 100%': { height: '10px' },
-                      '50%': { height: '30px' },
+                      '0%, 100%': { height: { xs: '8px', sm: '10px' } },
+                      '50%': { height: { xs: '24px', sm: '30px' } },
                     },
                   }}
                 />
@@ -254,55 +407,94 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({ currentScreen, o
         )}
 
         {isProcessing && !isListening && (
-          <Typography variant="body2" color="primary" sx={{ mb: 2, textAlign: 'center' }}>
+          <Typography variant="body2" color="primary" sx={{ mb: { xs: 1.5, sm: 2 }, textAlign: 'center', fontSize: { xs: '0.8rem', sm: '0.875rem' } }}>
             Processing your request...
           </Typography>
         )}
 
         {isSpeaking && (
-          <Typography variant="body2" color="success.main" sx={{ mb: 2, textAlign: 'center' }}>
+          <Typography variant="body2" color="success.main" sx={{ mb: { xs: 1.5, sm: 2 }, textAlign: 'center', fontSize: { xs: '0.8rem', sm: '0.875rem' } }}>
             🔊 Speaking...
           </Typography>
         )}
 
-        <Box sx={{ display: 'flex', justifyContent: 'center' }}>
-          <HelpTooltip title={isListening ? "Click to stop recording" : "Click to start voice command"}>
-            <IconButton
-              color={isListening ? 'error' : 'primary'}
-              size="large"
-              onClick={handleVoiceCommand}
-              disabled={isProcessing && !isListening}
-              aria-label={isListening ? 'Stop recording' : 'Start recording'}
-              aria-pressed={isListening}
-              aria-busy={isProcessing}
-              sx={{
-                width: 64,
-                height: 64,
-                bgcolor: isListening ? 'error.main' : 'primary.main',
-                color: 'white',
-                '&:hover': {
-                  bgcolor: isListening ? 'error.dark' : 'primary.dark',
-                },
-                '&:focus-visible': {
-                  outline: '2px solid',
-                  outlineOffset: '2px',
-                },
-                animation: isListening ? 'pulse 1.5s infinite' : 'none',
-                '@keyframes pulse': {
-                  '0%': { transform: 'scale(1)', boxShadow: '0 0 0 0 rgba(244, 67, 54, 0.7)' },
-                  '50%': { transform: 'scale(1.05)', boxShadow: '0 0 0 10px rgba(244, 67, 54, 0)' },
-                  '100%': { transform: 'scale(1)', boxShadow: '0 0 0 0 rgba(244, 67, 54, 0)' },
-                },
-              }}
-            >
-              {isListening ? <MicOffIcon fontSize="large" /> : <MicIcon fontSize="large" />}
-            </IconButton>
-          </HelpTooltip>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: { xs: 0.75, sm: 1 } }}>
+          <Box sx={{ display: 'flex', justifyContent: 'center', gap: { xs: 0.75, sm: 1 } }}>
+            <HelpTooltip title={isListening ? "Click to stop recording" : "Click for voice command"}>
+              <IconButton
+                color={isListening ? 'error' : 'primary'}
+                size={isMobile ? 'medium' : 'large'}
+                onClick={() => handleVoiceCommand(false)}
+                disabled={isProcessing && !isListening}
+                aria-label={isListening ? 'Stop recording' : 'Start command'}
+                sx={{
+                  width: { xs: 56, sm: 64 },
+                  height: { xs: 56, sm: 64 },
+                  minWidth: { xs: 56, sm: 64 },
+                  minHeight: { xs: 56, sm: 64 },
+                  bgcolor: isListening ? 'error.main' : 'primary.main',
+                  color: 'white',
+                  '&:hover': {
+                    bgcolor: isListening ? 'error.dark' : 'primary.dark',
+                  },
+                  animation: isListening ? 'pulse 1.5s infinite' : 'none',
+                  '@keyframes pulse': {
+                    '0%': { transform: 'scale(1)', boxShadow: '0 0 0 0 rgba(244, 67, 54, 0.7)' },
+                    '50%': { transform: 'scale(1.05)', boxShadow: '0 0 0 10px rgba(244, 67, 54, 0)' },
+                    '100%': { transform: 'scale(1)', boxShadow: '0 0 0 0 rgba(244, 67, 54, 0)' },
+                  },
+                }}
+              >
+                {isListening ? (
+                  <MicOffIcon sx={{ fontSize: { xs: 28, sm: 32 } }} />
+                ) : (
+                  <MicIcon sx={{ fontSize: { xs: 28, sm: 32 } }} />
+                )}
+              </IconButton>
+            </HelpTooltip>
+            {!isListening && (
+              <HelpTooltip title="Start a conversation">
+                <IconButton
+                  color="secondary"
+                  size={isMobile ? 'medium' : 'large'}
+                  onClick={() => handleVoiceCommand(true)}
+                  disabled={isProcessing}
+                  aria-label="Start conversation"
+                  sx={{
+                    width: { xs: 56, sm: 64 },
+                    height: { xs: 56, sm: 64 },
+                    minWidth: { xs: 56, sm: 64 },
+                    minHeight: { xs: 56, sm: 64 },
+                    bgcolor: 'secondary.main',
+                    color: 'white',
+                    '&:hover': {
+                      bgcolor: 'secondary.dark',
+                    },
+                  }}
+                >
+                  <MicIcon sx={{ fontSize: { xs: 28, sm: 32 } }} />
+                </IconButton>
+              </HelpTooltip>
+            )}
+          </Box>
+          
+          <Typography 
+            variant="caption" 
+            sx={{ 
+              display: 'block', 
+              textAlign: 'center', 
+              color: 'text.secondary',
+              fontSize: { xs: '0.7rem', sm: '0.75rem' },
+              px: { xs: 1, sm: 0 },
+            }}
+          >
+            {isListening 
+              ? 'Click to stop recording' 
+              : isConversationMode
+              ? 'Conversation mode - speak naturally'
+              : 'Say "Hey Flow" or click mic'}
+          </Typography>
         </Box>
-        
-        <Typography variant="caption" sx={{ display: 'block', textAlign: 'center', mt: 1, color: 'text.secondary' }}>
-          {isListening ? 'Click to stop recording' : 'Click to ask a question'}
-        </Typography>
       </Paper>
     </Box>
   );

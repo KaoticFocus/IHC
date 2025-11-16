@@ -13,17 +13,34 @@ import {
   Link,
   Alert,
   Divider,
+  Avatar,
+  List,
+  ListItem,
+  ListItemText,
+  ListItemIcon,
+  useMediaQuery,
+  useTheme,
 } from '@mui/material';
-import { Google } from '@mui/icons-material';
+import { 
+  Google,
+  Logout as LogoutIcon,
+  AccountCircle as AccountCircleIcon,
+  Email as EmailIcon,
+  Phone as PhoneIcon,
+  Work as WorkIcon,
+} from '@mui/icons-material';
 import { useAuth } from '../context/AuthContext';
 import { ErrorService } from '../services/ErrorService';
 
 interface AuthModalProps {
   open: boolean;
   onClose: () => void;
+  onEditProfile?: () => void;
 }
 
-export const AuthModal: React.FC<AuthModalProps> = ({ open, onClose }) => {
+export const AuthModal: React.FC<AuthModalProps> = ({ open, onClose, onEditProfile }) => {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const [tab, setTab] = useState(0);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -32,7 +49,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ open, onClose }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const { signIn, signUp, resetPassword, signInWithOAuth } = useAuth();
+  const { user, profile, signIn, signUp, resetPassword, signInWithOAuth, signOut } = useAuth();
   
   // Check if Supabase is configured
   const isSupabaseConfigured = !!(
@@ -143,16 +160,243 @@ export const AuthModal: React.FC<AuthModalProps> = ({ open, onClose }) => {
     }
   };
 
+  const handleSignOut = async () => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      await signOut();
+      onClose();
+    } catch (err: any) {
+      setError(err.message || 'Failed to sign out');
+      ErrorService.handleError(err, 'signOut');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // If user is logged in, show account info instead of sign in/sign up
+  if (user) {
+    const displayName = profile?.first_name || profile?.last_name
+      ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim()
+      : profile?.full_name || user.email?.split('@')[0] || 'User';
+    
+    const loginEmail = user.email || 'Not available';
+    const workEmail = profile?.work_email || 'Not set';
+    const phone = profile?.phone || 'Not set';
+
+    return (
+      <Dialog 
+        open={open} 
+        onClose={onClose} 
+        maxWidth="sm" 
+        fullWidth
+        fullScreen={isMobile}
+        PaperProps={{
+          sx: {
+            m: { xs: 0, sm: 2 },
+            maxHeight: { xs: '100%', sm: '90vh' },
+          }
+        }}
+      >
+        <DialogTitle sx={{ pb: { xs: 1, sm: 2 } }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
+            <Typography variant={isMobile ? 'subtitle1' : 'h6'} sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }}>
+              Account
+            </Typography>
+            <Typography 
+              variant="body2" 
+              color="success.main" 
+              sx={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: 0.5,
+                fontSize: { xs: '0.75rem', sm: '0.875rem' },
+              }}
+            >
+              <Box
+                sx={{
+                  width: { xs: 6, sm: 8 },
+                  height: { xs: 6, sm: 8 },
+                  borderRadius: '50%',
+                  bgcolor: 'success.main',
+                  display: 'inline-block',
+                }}
+              />
+              Signed In
+            </Typography>
+          </Box>
+        </DialogTitle>
+        <DialogContent sx={{ px: { xs: 2, sm: 3 }, pb: { xs: 2, sm: 3 } }}>
+          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', mb: { xs: 2, sm: 3 } }}>
+            <Avatar
+              src={profile?.avatar_url?.startsWith('emoji:') ? undefined : profile?.avatar_url}
+              sx={{
+                width: { xs: 64, sm: 80 },
+                height: { xs: 64, sm: 80 },
+                bgcolor: 'primary.main',
+                fontSize: { xs: '1.5rem', sm: '2rem' },
+                mb: { xs: 1.5, sm: 2 },
+              }}
+            >
+              {profile?.avatar_url?.startsWith('emoji:') ? (
+                <Typography sx={{ fontSize: { xs: '2rem', sm: '3rem' } }}>
+                  {profile.avatar_url.replace('emoji:', '')}
+                </Typography>
+              ) : !profile?.avatar_url ? (
+                <AccountCircleIcon sx={{ fontSize: { xs: 64, sm: 80 } }} />
+              ) : null}
+            </Avatar>
+            <Typography variant={isMobile ? 'subtitle1' : 'h6'} sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }}>
+              {displayName}
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
+              {loginEmail}
+            </Typography>
+            {user.app_metadata?.provider === 'google' && (
+              <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, fontSize: { xs: '0.7rem', sm: '0.75rem' } }}>
+                Signed in with Google
+              </Typography>
+            )}
+          </Box>
+
+          <List sx={{ width: '100%' }}>
+            <ListItem sx={{ px: { xs: 0, sm: 2 }, py: { xs: 1, sm: 1.5 } }}>
+              <ListItemIcon sx={{ minWidth: { xs: 40, sm: 56 } }}>
+                <EmailIcon color="action" sx={{ fontSize: { xs: 20, sm: 24 } }} />
+              </ListItemIcon>
+              <ListItemText
+                primary="Login Email"
+                secondary={loginEmail}
+                primaryTypographyProps={{
+                  fontSize: { xs: '0.875rem', sm: '1rem' },
+                }}
+                secondaryTypographyProps={{
+                  fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                }}
+              />
+            </ListItem>
+            {profile?.work_email && (
+              <ListItem sx={{ px: { xs: 0, sm: 2 }, py: { xs: 1, sm: 1.5 } }}>
+                <ListItemIcon sx={{ minWidth: { xs: 40, sm: 56 } }}>
+                  <WorkIcon color="action" sx={{ fontSize: { xs: 20, sm: 24 } }} />
+                </ListItemIcon>
+                <ListItemText
+                  primary="Work Email"
+                  secondary={workEmail}
+                  primaryTypographyProps={{
+                    fontSize: { xs: '0.875rem', sm: '1rem' },
+                  }}
+                  secondaryTypographyProps={{
+                    fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                  }}
+                />
+              </ListItem>
+            )}
+            {profile?.phone && (
+              <ListItem sx={{ px: { xs: 0, sm: 2 }, py: { xs: 1, sm: 1.5 } }}>
+                <ListItemIcon sx={{ minWidth: { xs: 40, sm: 56 } }}>
+                  <PhoneIcon color="action" sx={{ fontSize: { xs: 20, sm: 24 } }} />
+                </ListItemIcon>
+                <ListItemText
+                  primary="Phone"
+                  secondary={phone}
+                  primaryTypographyProps={{
+                    fontSize: { xs: '0.875rem', sm: '1rem' },
+                  }}
+                  secondaryTypographyProps={{
+                    fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                  }}
+                />
+              </ListItem>
+            )}
+          </List>
+
+          {onEditProfile && (
+            <Box sx={{ mt: { xs: 1.5, sm: 2 } }}>
+              <Button
+                variant="outlined"
+                fullWidth
+                onClick={() => {
+                  onClose();
+                  onEditProfile();
+                }}
+                size={isMobile ? 'medium' : 'large'}
+                sx={{
+                  minHeight: { xs: 44, sm: 48 },
+                }}
+              >
+                Edit Profile
+              </Button>
+            </Box>
+          )}
+          <Alert severity="info" sx={{ mt: { xs: 1.5, sm: 2 }, fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
+            Your profile information is stored in Supabase and synced across devices.
+          </Alert>
+        </DialogContent>
+        <DialogActions sx={{ px: { xs: 2, sm: 3 }, pb: { xs: 2, sm: 3 }, flexDirection: { xs: 'column-reverse', sm: 'row' }, gap: { xs: 1, sm: 0 } }}>
+          <Button 
+            onClick={onClose}
+            fullWidth={isMobile}
+            size={isMobile ? 'medium' : 'large'}
+            sx={{
+              minHeight: { xs: 44, sm: 48 },
+            }}
+          >
+            Close
+          </Button>
+          <Button
+            onClick={handleSignOut}
+            variant="outlined"
+            color="error"
+            startIcon={<LogoutIcon />}
+            disabled={loading}
+            fullWidth={isMobile}
+            size={isMobile ? 'medium' : 'large'}
+            sx={{
+              minHeight: { xs: 44, sm: 48 },
+            }}
+          >
+            {loading ? 'Signing out...' : 'Sign Out'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+    );
+  }
+
+  // User is not logged in - show sign in/sign up forms
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-      <DialogTitle>
-        <Tabs value={tab} onChange={(_, newValue) => setTab(newValue)}>
+    <Dialog 
+      open={open} 
+      onClose={onClose} 
+      maxWidth="sm" 
+      fullWidth
+      fullScreen={isMobile}
+      PaperProps={{
+        sx: {
+          m: { xs: 0, sm: 2 },
+          maxHeight: { xs: '100%', sm: '90vh' },
+        }
+      }}
+    >
+      <DialogTitle sx={{ pb: { xs: 1, sm: 2 } }}>
+        <Tabs 
+          value={tab} 
+          onChange={(_, newValue) => setTab(newValue)}
+          variant={isMobile ? 'fullWidth' : 'standard'}
+          sx={{
+            '& .MuiTab-root': {
+              minHeight: { xs: 48, sm: 48 },
+              fontSize: { xs: '0.875rem', sm: '1rem' },
+            },
+          }}
+        >
           <Tab label="Sign In" />
           <Tab label="Sign Up" />
           <Tab label="Reset Password" />
         </Tabs>
       </DialogTitle>
-      <DialogContent>
+      <DialogContent sx={{ px: { xs: 2, sm: 3 }, pb: { xs: 2, sm: 3 } }}>
         {error && (
           <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
             {error}
@@ -310,20 +554,56 @@ export const AuthModal: React.FC<AuthModalProps> = ({ open, onClose }) => {
           </Box>
         )}
       </DialogContent>
-      <DialogActions>
-        <Button onClick={onClose}>Cancel</Button>
+      <DialogActions sx={{ px: { xs: 2, sm: 3 }, pb: { xs: 2, sm: 3 }, flexDirection: { xs: 'column-reverse', sm: 'row' }, gap: { xs: 1, sm: 0 } }}>
+        <Button 
+          onClick={onClose}
+          fullWidth={isMobile}
+          size={isMobile ? 'medium' : 'large'}
+          sx={{
+            minHeight: { xs: 44, sm: 48 },
+          }}
+        >
+          Cancel
+        </Button>
         {tab === 0 && (
-          <Button onClick={handleSignIn} variant="contained" disabled={loading}>
+          <Button 
+            onClick={handleSignIn} 
+            variant="contained" 
+            disabled={loading}
+            fullWidth={isMobile}
+            size={isMobile ? 'medium' : 'large'}
+            sx={{
+              minHeight: { xs: 44, sm: 48 },
+            }}
+          >
             Sign In
           </Button>
         )}
         {tab === 1 && (
-          <Button onClick={handleSignUp} variant="contained" disabled={loading}>
+          <Button 
+            onClick={handleSignUp} 
+            variant="contained" 
+            disabled={loading}
+            fullWidth={isMobile}
+            size={isMobile ? 'medium' : 'large'}
+            sx={{
+              minHeight: { xs: 44, sm: 48 },
+            }}
+          >
             Sign Up
           </Button>
         )}
         {tab === 2 && (
-          <Button onClick={handleResetPassword} variant="contained" disabled={loading}>
+          <Button 
+            onClick={handleResetPassword} 
+            variant="contained" 
+            disabled={loading}
+            fullWidth={isMobile}
+            size={isMobile ? 'medium' : 'large'}
+            sx={{
+              minHeight: { xs: 44, sm: 48 },
+            }}
+          >
             Send Reset Email
           </Button>
         )}
