@@ -205,13 +205,6 @@ export const ProfileEditModal: React.FC<ProfileEditModalProps> = ({ open, onClos
     }
   };
 
-  const getAvatarDisplay = () => {
-    if (!formData.avatar_url) return null;
-    if (formData.avatar_url.startsWith('emoji:')) {
-      return formData.avatar_url.replace('emoji:', '');
-    }
-    return null;
-  };
 
   const handleAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -604,7 +597,7 @@ export const ProfileEditModal: React.FC<ProfileEditModalProps> = ({ open, onClos
               scrollButtons="auto"
               sx={{ borderBottom: 1, borderColor: 'divider', mb: 2 }}
             >
-              {Object.keys(EMOJI_CATEGORIES).map((category, index) => (
+              {Object.keys(EMOJI_CATEGORIES).map((category) => (
                 <Tab key={category} label={category} />
               ))}
             </Tabs>

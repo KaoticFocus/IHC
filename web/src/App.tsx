@@ -719,6 +719,7 @@ export const App: React.FC = () => {
         </AppLayout>
       </Suspense>
     </TooltipProvider>
+    </>
   );
 };
 

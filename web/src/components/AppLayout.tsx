@@ -76,7 +76,6 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
   const { toggleTheme, theme } = useThemeMode();
   const muiTheme = useTheme();
   const isMobile = useMediaQuery(muiTheme.breakpoints.down('md'));
-  const isTablet = useMediaQuery(muiTheme.breakpoints.between('md', 'lg'));
   const [drawerOpen, setDrawerOpen] = React.useState(!isMobile);
   const [authOpen, setAuthOpen] = React.useState(false);
   const [shortcutsOpen, setShortcutsOpen] = React.useState(false);

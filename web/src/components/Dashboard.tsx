@@ -33,7 +33,6 @@ export const Dashboard: React.FC<DashboardProps> = ({
 }) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
-  const isTablet = useMediaQuery(theme.breakpoints.between('sm', 'md'));
 
   const stats = useMemo(() => {
     const totalTranscripts = transcripts.length;

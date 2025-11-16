@@ -32,7 +32,6 @@ interface VoiceAssistantProps {
 export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({ currentScreen, onNavigate }) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
-  const isTablet = useMediaQuery(theme.breakpoints.between('sm', 'md'));
   const [isListening, setIsListening] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);

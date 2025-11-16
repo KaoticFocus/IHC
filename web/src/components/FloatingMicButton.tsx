@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { IconButton, Badge, Tooltip } from '@mui/material';
+import React from 'react';
+import { IconButton, Tooltip } from '@mui/material';
 import { Mic as MicIcon } from '@mui/icons-material';
 import { Box } from '@mui/material';
 

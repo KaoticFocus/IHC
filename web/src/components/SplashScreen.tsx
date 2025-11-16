@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Box, Typography, useTheme } from '@mui/material';
-import { useMediaQuery } from '@mui/material';
+import { Box, Typography, useTheme, useMediaQuery } from '@mui/material';
 
 interface SplashScreenProps {
   onComplete: () => void;
