@@ -33,6 +33,9 @@ import InteractiveScopeReview from './src/components/InteractiveScopeReview';
 import VoiceAssistant from './src/components/VoiceAssistant';
 import OpenAIService, { AIAnalysis } from './src/services/OpenAIService';
 import CommandProcessor from './src/services/CommandProcessor';
+import ConsultationScreen from './src/components/ConsultationScreen';
+import ConsultationService from './src/services/ConsultationService';
+import DocumentPicker from 'react-native-document-picker';
 
 const { width, height } = Dimensions.get('window');
 
@@ -72,6 +75,8 @@ const App: React.FC = () => {
   const [isGeneratingScope, setIsGeneratingScope] = useState(false);
   const [showInteractiveReview, setShowInteractiveReview] = useState(false);
   const [currentScreen, setCurrentScreen] = useState('main');
+  const [showConsultations, setShowConsultations] = useState(false);
+  const [currentConsultationId, setCurrentConsultationId] = useState<string | null>(null);
 
   useEffect(() => {
     checkPermissions();
@@ -250,21 +255,37 @@ const App: React.FC = () => {
 
       // Start transcription
       try {
-        const sessionId = await EnhancedTranscriptionService.startTranscription(
-          useOpenAI && hasOpenAIKey,
-          (entries) => {
-            setTranscriptEntries(entries);
-          },
-          (error) => {
-            console.error('Transcription error:', error);
-            Alert.alert('Transcription Error', error);
-          },
-          (analysis) => {
-            setAiAnalysis(analysis);
-          }
-        );
-        setCurrentSessionId(sessionId);
-        setIsTranscribing(true);
+      const sessionId = await EnhancedTranscriptionService.startTranscription(
+        useOpenAI && hasOpenAIKey,
+        (entries) => {
+          setTranscriptEntries(entries);
+        },
+        (error) => {
+          console.error('Transcription error:', error);
+          Alert.alert('Transcription Error', error);
+        },
+        (analysis) => {
+          setAiAnalysis(analysis);
+        }
+      );
+      setCurrentSessionId(sessionId);
+      setIsTranscribing(true);
+
+      // Create consultation for this recording
+      try {
+        await ConsultationService.initialize();
+        if (ConsultationService.isAvailable()) {
+          const consultation = await ConsultationService.createConsultation({
+            title: `Consultation - ${new Date().toLocaleDateString()}`,
+            consultationDate: new Date(),
+            sessionId: sessionId,
+          });
+          setCurrentConsultationId(consultation.id);
+        }
+      } catch (err) {
+        console.warn('Failed to create consultation:', err);
+        // Continue with recording even if consultation creation fails
+      }
       } catch (transcriptionError) {
         console.error('Failed to start transcription:', transcriptionError);
         // Continue with recording even if transcription fails
@@ -316,6 +337,23 @@ const App: React.FC = () => {
               finalEntries, 
               aiAnalysisResult
             );
+          }
+
+          // Update consultation with recording ID if available
+          if (currentConsultationId && result) {
+            try {
+              await ConsultationService.initialize();
+              if (ConsultationService.isAvailable()) {
+                // Extract recording ID from path if needed
+                const recordingId = result.split('/').pop()?.replace('.m4a', '') || result;
+                await ConsultationService.updateConsultation({
+                  id: currentConsultationId,
+                  recordingId: recordingId,
+                });
+              }
+            } catch (err) {
+              console.warn('Failed to update consultation with recording:', err);
+            }
           }
         } catch (transcriptionError) {
           console.error('Error stopping transcription:', transcriptionError);
@@ -533,6 +571,47 @@ const App: React.FC = () => {
     }
   };
 
+  const handlePhotoUpload = async () => {
+    if (!currentConsultationId) {
+      Alert.alert('Error', 'No active consultation. Please start a recording first.');
+      return;
+    }
+
+    try {
+      const result = await DocumentPicker.pick({
+        type: [DocumentPicker.types.images],
+        allowMultiSelection: false,
+      });
+
+      if (result && result.length > 0) {
+        const file = result[0];
+        const fileName = file.name || `photo_${Date.now()}.jpg`;
+        const mimeType = file.type || 'image/jpeg';
+
+        await ConsultationService.initialize();
+        if (!ConsultationService.isAvailable()) {
+          Alert.alert('Error', 'Consultation service not available. Please configure Supabase in settings.');
+          return;
+        }
+
+        await ConsultationService.uploadPhoto(
+          currentConsultationId,
+          file.uri,
+          fileName,
+          mimeType
+        );
+
+        Alert.alert('Success', 'Photo uploaded successfully');
+      }
+    } catch (err: any) {
+      if (DocumentPicker.isCancel(err)) {
+        // User cancelled
+        return;
+      }
+      Alert.alert('Error', (err as Error).message || 'Failed to upload photo');
+    }
+  };
+
   const renderRecordingItem = ({ item }: { item: Recording }) => (
     <View style={styles.recordingItem}>
       <View style={styles.recordingInfo}>
@@ -619,6 +698,12 @@ const App: React.FC = () => {
             <View style={styles.headerButtons}>
               <TouchableOpacity
                 style={styles.headerButton}
+                onPress={() => setShowConsultations(true)}
+              >
+                <Icon name="event-note" size={24} color="#ffffff" />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.headerButton}
                 onPress={() => setShowSettings(true)}
               >
                 <Icon name="settings" size={24} color="#ffffff" />
@@ -662,6 +747,15 @@ const App: React.FC = () => {
                 </View>
               )}
             </View>
+            {isRecording && currentConsultationId && (
+              <TouchableOpacity
+                style={styles.photoButton}
+                onPress={handlePhotoUpload}
+              >
+                <Icon name="photo-camera" size={20} color="#fff" />
+                <Text style={styles.photoButtonText}>Add Photo</Text>
+              </TouchableOpacity>
+            )}
           </View>
 
           <View style={styles.recordingStats}>
@@ -752,6 +846,11 @@ const App: React.FC = () => {
       <VoiceAssistant
         onCommandExecuted={handleVoiceCommand}
         currentScreen={currentScreen}
+      />
+
+      <ConsultationScreen
+        visible={showConsultations}
+        onClose={() => setShowConsultations(false)}
       />
     </SafeAreaView>
   );
@@ -849,6 +948,23 @@ const styles = StyleSheet.create({
     color: '#4CAF50',
     fontWeight: 'bold',
     fontFamily: 'monospace',
+  },
+  photoButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    paddingHorizontal: 15,
+    paddingVertical: 10,
+    borderRadius: 20,
+    marginTop: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+  },
+  photoButtonText: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '600',
+    marginLeft: 8,
   },
   recordingStats: {
     flexDirection: 'row',
