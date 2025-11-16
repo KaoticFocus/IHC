@@ -11,6 +11,10 @@ export interface CommandResult {
 class CommandProcessor {
   private navigationCallback?: (screen: string) => void;
   private recordingCallback?: (action: 'start' | 'stop') => void;
+  private projectCreationCallback?: (projectData: any) => Promise<void>;
+  private noteDictationCallback?: (note: string, targetId?: string, targetType?: 'project' | 'consultation') => Promise<void>;
+  private photoDescriptionCallback?: (description: string, photoIds: string[]) => Promise<void>;
+  private workDescriptionCallback?: (description: string, photoIds: string[]) => Promise<void>;
 
   setNavigationCallback(callback: (screen: string) => void) {
     this.navigationCallback = callback;
@@ -18,6 +22,22 @@ class CommandProcessor {
 
   setRecordingCallback(callback: (action: 'start' | 'stop') => void) {
     this.recordingCallback = callback;
+  }
+
+  setProjectCreationCallback(callback: (projectData: any) => Promise<void>) {
+    this.projectCreationCallback = callback;
+  }
+
+  setNoteDictationCallback(callback: (note: string, targetId?: string, targetType?: 'project' | 'consultation') => Promise<void>) {
+    this.noteDictationCallback = callback;
+  }
+
+  setPhotoDescriptionCallback(callback: (description: string, photoIds: string[]) => Promise<void>) {
+    this.photoDescriptionCallback = callback;
+  }
+
+  setWorkDescriptionCallback(callback: (description: string, photoIds: string[]) => Promise<void>) {
+    this.workDescriptionCallback = callback;
   }
 
   async executeCommand(action: string, parameters: any): Promise<CommandResult> {
@@ -52,6 +72,18 @@ class CommandProcessor {
         
         case 'clear':
           return await this.handleClear(parameters);
+        
+        case 'create_project':
+          return await this.handleCreateProject(parameters);
+        
+        case 'dictate_note':
+          return await this.handleDictateNote(parameters);
+        
+        case 'describe_photo':
+          return await this.handleDescribePhoto(parameters);
+        
+        case 'describe_work':
+          return await this.handleDescribeWork(parameters);
         
         default:
           return {
@@ -237,6 +269,152 @@ class CommandProcessor {
     };
   }
 
+  private async handleCreateProject(parameters: any): Promise<CommandResult> {
+    const projectData = parameters.projectData || parameters;
+    
+    if (!projectData.name && !projectData.title) {
+      return {
+        success: false,
+        message: 'I need a project name to create a project. Please say something like "Create a project called Kitchen Remodel".',
+      };
+    }
+
+    if (this.projectCreationCallback) {
+      try {
+        await this.projectCreationCallback(projectData);
+        return {
+          success: true,
+          message: `Project "${projectData.name || projectData.title}" created successfully.`,
+          data: { action: 'create_project', projectData },
+        };
+      } catch (error) {
+        return {
+          success: false,
+          message: `Failed to create project: ${(error as Error).message}`,
+        };
+      }
+    }
+
+    return {
+      success: false,
+      message: 'Project creation is not available. Please use the projects screen to create a project.',
+    };
+  }
+
+  private async handleDictateNote(parameters: any): Promise<CommandResult> {
+    const note = parameters.note || parameters.text || parameters.description;
+    const targetId = parameters.targetId || parameters.projectId || parameters.consultationId;
+    const targetType = parameters.targetType || (parameters.projectId ? 'project' : parameters.consultationId ? 'consultation' : undefined);
+
+    if (!note) {
+      return {
+        success: false,
+        message: 'I didn\'t catch what you wanted to note. Please try again.',
+      };
+    }
+
+    if (this.noteDictationCallback) {
+      try {
+        await this.noteDictationCallback(note, targetId, targetType);
+        return {
+          success: true,
+          message: 'Note saved successfully.',
+          data: { action: 'dictate_note', note, targetId, targetType },
+        };
+      } catch (error) {
+        return {
+          success: false,
+          message: `Failed to save note: ${(error as Error).message}`,
+        };
+      }
+    }
+
+    return {
+      success: false,
+      message: 'Note dictation is not available.',
+    };
+  }
+
+  private async handleDescribePhoto(parameters: any): Promise<CommandResult> {
+    const description = parameters.description || parameters.text || parameters.note;
+    const photoIds = parameters.photoIds || (parameters.photoId ? [parameters.photoId] : []);
+
+    if (!description) {
+      return {
+        success: false,
+        message: 'I didn\'t catch the description. Please describe the photo again.',
+      };
+    }
+
+    if (photoIds.length === 0) {
+      return {
+        success: false,
+        message: 'No photo selected. Please select a photo first.',
+      };
+    }
+
+    if (this.photoDescriptionCallback) {
+      try {
+        await this.photoDescriptionCallback(description, photoIds);
+        return {
+          success: true,
+          message: `Photo description saved successfully.`,
+          data: { action: 'describe_photo', description, photoIds },
+        };
+      } catch (error) {
+        return {
+          success: false,
+          message: `Failed to save photo description: ${(error as Error).message}`,
+        };
+      }
+    }
+
+    return {
+      success: false,
+      message: 'Photo description is not available.',
+    };
+  }
+
+  private async handleDescribeWork(parameters: any): Promise<CommandResult> {
+    const description = parameters.description || parameters.text || parameters.work || parameters.note;
+    const photoIds = parameters.photoIds || (parameters.photoId ? [parameters.photoId] : []);
+
+    if (!description) {
+      return {
+        success: false,
+        message: 'I didn\'t catch the work description. Please describe what work needs to be done.',
+      };
+    }
+
+    if (photoIds.length === 0) {
+      return {
+        success: false,
+        message: 'No photos selected. Please select one or more photos first.',
+      };
+    }
+
+    if (this.workDescriptionCallback) {
+      try {
+        await this.workDescriptionCallback(description, photoIds);
+        return {
+          success: true,
+          message: `Work description saved successfully for ${photoIds.length} photo${photoIds.length > 1 ? 's' : ''}.`,
+          data: { action: 'describe_work', description, photoIds },
+        };
+      } catch (error) {
+        return {
+          success: false,
+          message: `Failed to save work description: ${(error as Error).message}`,
+        };
+      }
+    }
+
+    return {
+      success: false,
+      message: 'Work description is not available.',
+    };
+  }
+
   // Utility method to get available commands for the current context
   getAvailableCommands(context: string): string[] {
     const baseCommands = [
@@ -253,6 +431,9 @@ class CommandProcessor {
           ...baseCommands,
           'start recording',
           'go to settings',
+          'go to projects',
+          'go to consultations',
+          'create project',
         ];
       
       case 'recording':
@@ -260,6 +441,24 @@ class CommandProcessor {
           ...baseCommands,
           'stop recording',
           'generate scope of work',
+          'dictate note',
+          'go back',
+        ];
+      
+      case 'projects':
+        return [
+          ...baseCommands,
+          'create project',
+          'dictate note',
+          'go back',
+        ];
+      
+      case 'consultations':
+        return [
+          ...baseCommands,
+          'dictate note',
+          'describe photo',
+          'describe work',
           'go back',
         ];
       

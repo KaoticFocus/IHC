@@ -403,6 +403,71 @@ class ConsultationService {
   }
 
   /**
+   * Update photo description
+   */
+  async updatePhotoDescription(consultationId: string, photoId: string, description: string): Promise<void> {
+    await this.initialize();
+    if (!this.supabase) {
+      throw new Error('Supabase not configured');
+    }
+
+    const userId = await this.getUserId();
+    if (!userId) {
+      throw new Error('User not authenticated');
+    }
+
+    const { error } = await this.supabase
+      .from('consultation_photos')
+      .update({ description })
+      .eq('id', photoId)
+      .eq('consultation_id', consultationId);
+
+    if (error) throw error;
+  }
+
+  /**
+   * Update work description for photos (stores in description field with work prefix)
+   */
+  async updatePhotoWorkDescription(consultationId: string, photoIds: string[], workDescription: string): Promise<void> {
+    await this.initialize();
+    if (!this.supabase) {
+      throw new Error('Supabase not configured');
+    }
+
+    const userId = await this.getUserId();
+    if (!userId) {
+      throw new Error('User not authenticated');
+    }
+
+    // Update each photo with work description
+    for (const photoId of photoIds) {
+      // Get current description
+      const { data: photo } = await this.supabase
+        .from('consultation_photos')
+        .select('description')
+        .eq('id', photoId)
+        .eq('consultation_id', consultationId)
+        .single();
+
+      const currentDescription = photo?.description || '';
+      const workPrefix = 'WORK: ';
+      const newDescription = currentDescription 
+        ? `${currentDescription}\n\n${workPrefix}${workDescription}`
+        : `${workPrefix}${workDescription}`;
+
+      const { error } = await this.supabase
+        .from('consultation_photos')
+        .update({ description: newDescription })
+        .eq('id', photoId)
+        .eq('consultation_id', consultationId);
+
+      if (error) {
+        console.error(`Error updating photo ${photoId}:`, error);
+      }
+    }
+  }
+
+  /**
    * Delete a photo
    */
   async deletePhoto(consultationId: string, photoId: string): Promise<void> {

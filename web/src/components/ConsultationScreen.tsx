@@ -20,6 +20,7 @@ import {
   ImageList,
   ImageListItem,
   ImageListItemBar,
+  Checkbox,
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -29,12 +30,22 @@ import {
   Note as NoteIcon,
   Mic as MicIcon,
   PhotoCamera as PhotoCameraIcon,
+  CheckCircle as CheckCircleIcon,
+  RadioButtonUnchecked as RadioButtonUncheckedIcon,
 } from '@mui/icons-material';
 import { Consultation, CreateConsultationInput } from '../types/Consultation';
 import ConsultationService from '../services/ConsultationService';
 import { useAuth } from '../context/AuthContext';
 
-export const ConsultationScreen: React.FC = () => {
+interface ConsultationScreenProps {
+  onPhotoSelectionChange?: (photoIds: string[]) => void;
+  onConsultationSelect?: (consultationId: string | null) => void;
+}
+
+export const ConsultationScreen: React.FC<ConsultationScreenProps> = ({ 
+  onPhotoSelectionChange,
+  onConsultationSelect,
+}) => {
   const auth = useAuth();
   const [consultations, setConsultations] = useState<Consultation[]>([]);
   const [loading, setLoading] = useState(true);
@@ -45,6 +56,7 @@ export const ConsultationScreen: React.FC = () => {
   const [notesDialogOpen, setNotesDialogOpen] = useState(false);
   const [selectedConsultation, setSelectedConsultation] = useState<Consultation | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [selectedPhotoIds, setSelectedPhotoIds] = useState<string[]>([]);
 
   // Form state
   const [consultationForm, setConsultationForm] = useState<CreateConsultationInput>({
@@ -58,6 +70,20 @@ export const ConsultationScreen: React.FC = () => {
   });
 
   const [notesText, setNotesText] = useState('');
+
+  // Notify parent of photo selection changes
+  useEffect(() => {
+    if (onPhotoSelectionChange) {
+      onPhotoSelectionChange(selectedPhotoIds);
+    }
+  }, [selectedPhotoIds, onPhotoSelectionChange]);
+
+  // Notify parent of consultation selection
+  useEffect(() => {
+    if (onConsultationSelect) {
+      onConsultationSelect(selectedConsultation?.id || null);
+    }
+  }, [selectedConsultation, onConsultationSelect]);
 
   useEffect(() => {
     if (auth.user) {
@@ -515,55 +541,113 @@ export const ConsultationScreen: React.FC = () => {
               <Typography variant="h6" sx={{ mb: 2 }}>
                 Photos ({selectedConsultation.photos.length})
               </Typography>
+              <Box sx={{ mb: 2 }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                  <Typography variant="body2" color="text.secondary">
+                    {selectedPhotoIds.length > 0 
+                      ? `${selectedPhotoIds.length} photo${selectedPhotoIds.length > 1 ? 's' : ''} selected`
+                      : 'Select photos to describe with voice commands'}
+                  </Typography>
+                  {selectedPhotoIds.length > 0 && (
+                    <Button
+                      size="small"
+                      onClick={() => setSelectedPhotoIds([])}
+                    >
+                      Clear Selection
+                    </Button>
+                  )}
+                </Box>
+              </Box>
               <ImageList cols={3} gap={16}>
-                {selectedConsultation.photos.map((photo) => (
-                  <ImageListItem key={photo.id}>
-                    {photo.url ? (
-                      <img
-                        src={photo.url}
-                        alt={photo.name}
-                        loading="lazy"
-                        style={{ width: '100%', height: '200px', objectFit: 'cover' }}
-                      />
-                    ) : (
-                      <Box
-                        sx={{
-                          width: '100%',
-                          height: '200px',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          bgcolor: 'grey.200',
-                        }}
-                      >
-                        <PhotoCameraIcon />
-                      </Box>
-                    )}
-                    <ImageListItemBar
-                      title={photo.name}
-                      subtitle={`${(photo.fileSize / 1024).toFixed(1)} KB`}
-                      actionIcon={
-                        <IconButton
-                          sx={{ color: 'rgba(255, 255, 255, 0.54)' }}
-                          onClick={() => {
-                            if (photo.url) window.open(photo.url, '_blank');
+                {selectedConsultation.photos.map((photo) => {
+                  const isSelected = selectedPhotoIds.includes(photo.id);
+                  return (
+                    <ImageListItem 
+                      key={photo.id}
+                      onClick={() => {
+                        if (isSelected) {
+                          setSelectedPhotoIds(selectedPhotoIds.filter(id => id !== photo.id));
+                        } else {
+                          setSelectedPhotoIds([...selectedPhotoIds, photo.id]);
+                        }
+                      }}
+                      sx={{
+                        cursor: 'pointer',
+                        border: isSelected ? '3px solid' : '3px solid transparent',
+                        borderColor: isSelected ? 'primary.main' : 'transparent',
+                        borderRadius: 1,
+                        transition: 'all 0.2s',
+                        '&:hover': {
+                          borderColor: isSelected ? 'primary.dark' : 'primary.light',
+                        },
+                      }}
+                    >
+                      {photo.url ? (
+                        <img
+                          src={photo.url}
+                          alt={photo.name}
+                          loading="lazy"
+                          style={{ width: '100%', height: '200px', objectFit: 'cover' }}
+                        />
+                      ) : (
+                        <Box
+                          sx={{
+                            width: '100%',
+                            height: '200px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            bgcolor: 'grey.200',
                           }}
                         >
-                          <ViewIcon />
+                          <PhotoCameraIcon />
+                        </Box>
+                      )}
+                      <Box sx={{ position: 'absolute', top: 8, left: 8 }}>
+                        <Checkbox
+                          checked={isSelected}
+                          icon={<RadioButtonUncheckedIcon sx={{ color: 'white' }} />}
+                          checkedIcon={<CheckCircleIcon sx={{ color: 'primary.main', bgcolor: 'white', borderRadius: '50%' }} />}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (isSelected) {
+                              setSelectedPhotoIds(selectedPhotoIds.filter(id => id !== photo.id));
+                            } else {
+                              setSelectedPhotoIds([...selectedPhotoIds, photo.id]);
+                            }
+                          }}
+                        />
+                      </Box>
+                      <ImageListItemBar
+                        title={photo.name}
+                        subtitle={photo.description || `${(photo.fileSize / 1024).toFixed(1)} KB`}
+                        actionIcon={
+                          <IconButton
+                            sx={{ color: 'rgba(255, 255, 255, 0.54)' }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (photo.url) window.open(photo.url, '_blank');
+                            }}
+                          >
+                            <ViewIcon />
+                          </IconButton>
+                        }
+                      />
+                      <Box sx={{ position: 'absolute', top: 8, right: 8 }}>
+                        <IconButton
+                          size="small"
+                          color="error"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeletePhoto(selectedConsultation!.id, photo.id);
+                          }}
+                        >
+                          <DeleteIcon fontSize="small" />
                         </IconButton>
-                      }
-                    />
-                    <Box sx={{ position: 'absolute', top: 8, right: 8 }}>
-                      <IconButton
-                        size="small"
-                        color="error"
-                        onClick={() => handleDeletePhoto(selectedConsultation!.id, photo.id)}
-                      >
-                        <DeleteIcon fontSize="small" />
-                      </IconButton>
-                    </Box>
-                  </ImageListItem>
-                ))}
+                      </Box>
+                    </ImageListItem>
+                  );
+                })}
               </ImageList>
             </Box>
           ) : (

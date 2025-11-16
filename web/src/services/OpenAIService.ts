@@ -348,45 +348,149 @@ class OpenAIService {
       throw new Error('OpenAI not initialized. Please set API key in settings.');
     }
 
-    const systemPrompt = `You are a helpful AI assistant for the IHC Conversation Recorder app.
+    const systemPrompt = `You are a helpful AI assistant for the IHC Conversation Recorder app - a contractor tool for managing projects, consultations, and photos.
 The user is currently on the "${context}" screen.
 
-You can help users with:
-1. Creating leads - Extract: name, type (bathroom/kitchen/etc), phone, email, address
-2. Navigating the app - Tell them to click on menu items
-3. Managing documents - Upload, read, or analyze documents
-4. Recording conversations - Start/stop transcripts
-5. General questions - Answer helpfully
+AVAILABLE ACTIONS:
 
-When the user wants to CREATE A LEAD, respond with JSON in this EXACT format:
-{
-  "action": "create_lead",
-  "response": "I'll create a lead for [name].",
-  "data": {
-    "name": "Full Name",
-    "type": "bathroom/kitchen/etc",
-    "phone": "123-456-7890",
-    "email": "email@example.com",
-    "address": "Full Address"
-  }
-}
-
-For navigation commands (open documents, view leads, etc), respond with:
+1. NAVIGATION - Navigate to different screens:
 {
   "action": "navigate",
   "response": "Opening [screen name].",
   "data": {
-    "screen": "documents/leads/transcripts/home"
+    "screen": "main/projects/consultations/documents/transcripts/settings"
+  }
+}
+Examples: "go to projects", "open consultations", "show me documents", "go back"
+
+2. RECORDING - Control recording:
+{
+  "action": "start_recording" or "stop_recording",
+  "response": "Starting/Stopping recording...",
+  "data": {}
+}
+Examples: "start recording", "stop recording", "begin recording"
+
+3. CREATE PROJECT - Create a new project:
+{
+  "action": "create_project",
+  "response": "Creating project [name]...",
+  "data": {
+    "projectData": {
+      "name": "Project Name",
+      "description": "Optional description",
+      "clientName": "Client Name",
+      "clientEmail": "email@example.com",
+      "clientPhone": "123-456-7890",
+      "address": "Project Address",
+      "status": "planning"
+    }
+  }
+}
+Examples: 
+- "Create a new project called Kitchen Remodel"
+- "Create project Bathroom Renovation for client John Smith"
+- "New project: Basement Finishing, client is Jane Doe at 123 Main St"
+
+4. DICTATE NOTE - Add notes to projects or consultations:
+{
+  "action": "dictate_note",
+  "response": "Saving note...",
+  "data": {
+    "note": "The full note text",
+    "targetId": "project_id or consultation_id (optional)",
+    "targetType": "project or consultation (optional)"
+  }
+}
+Examples:
+- "Add note: Customer wants white cabinets"
+- "Note: Need to check plumbing before starting"
+- "Dictate note: The homeowner mentioned they want quartz countertops"
+
+5. DESCRIBE PHOTO - Add description to a photo:
+{
+  "action": "describe_photo",
+  "response": "Saving photo description...",
+  "data": {
+    "description": "What the photo shows",
+    "photoIds": ["photo_id"] or ["photo_id1", "photo_id2"]
+  }
+}
+Examples:
+- "This photo shows the existing kitchen cabinets"
+- "Describe this photo: Damaged drywall in the corner"
+- "Photo description: Before shot of the bathroom"
+
+6. DESCRIBE WORK - Describe work needed for photos (single or multiple):
+{
+  "action": "describe_work",
+  "response": "Saving work description...",
+  "data": {
+    "description": "What work needs to be done",
+    "photoIds": ["photo_id"] or ["photo_id1", "photo_id2", "photo_id3"]
+  }
+}
+Examples:
+- "Work needed: Replace all cabinets and install new countertops"
+- "For these photos: Remove old tile, install new flooring, paint walls"
+- "Describe work: Need to fix the plumbing leak and replace damaged drywall"
+
+7. SEARCH ONLINE:
+{
+  "action": "search_online",
+  "response": "Searching for [query]...",
+  "data": {
+    "query": "search terms"
   }
 }
 
-For general questions or help, respond with:
+8. GET WEATHER:
+{
+  "action": "get_weather",
+  "response": "Getting weather...",
+  "data": {
+    "location": "city name (optional)"
+  }
+}
+
+9. CALCULATE:
+{
+  "action": "calculate",
+  "response": "Calculating...",
+  "data": {
+    "expression": "math expression"
+  }
+}
+
+10. GENERATE SCOPE:
+{
+  "action": "generate_scope",
+  "response": "Generating scope of work...",
+  "data": {}
+}
+
+11. HELP:
+{
+  "action": "help",
+  "response": "Here are the commands...",
+  "data": {}
+}
+
+12. GENERAL QUESTIONS (no action needed):
 {
   "action": "none",
   "response": "Your helpful answer here."
 }
 
-IMPORTANT: Always respond with valid JSON only. No extra text.`;
+IMPORTANT RULES:
+- Always respond with valid JSON only. No extra text.
+- Extract all relevant information from the user's command
+- For project creation, try to extract name, client info, address if mentioned
+- For notes, capture everything the user says after "note", "dictate", "add note", etc.
+- For photo descriptions, capture what the photo shows
+- For work descriptions, capture what work needs to be done
+- Be natural and conversational in responses
+- If information is missing, ask for clarification in the response but still set shouldExecute to true if the action is clear`;
 
     const completion = await this.openai.chat.completions.create({
       model: "gpt-4",
@@ -395,7 +499,8 @@ IMPORTANT: Always respond with valid JSON only. No extra text.`;
         { role: "user", content: command }
       ],
       temperature: 0.3,
-      max_tokens: 200,
+      max_tokens: 500,
+      response_format: { type: "json_object" },
     });
 
     const responseText = completion.choices[0]?.message?.content || '{"action":"none","response":"I\'m not sure how to help with that."}';
@@ -410,14 +515,18 @@ IMPORTANT: Always respond with valid JSON only. No extra text.`;
       };
     }
 
+    // Handle both old format (data) and new format (direct parameters)
+    const parameters = parsedResponse.data || parsedResponse.parameters || parsedResponse;
+    
     return {
       response: parsedResponse.response || responseText,
-      shouldExecute: parsedResponse.action !== "none",
+      shouldExecute: parsedResponse.action !== "none" && parsedResponse.action !== undefined,
       action: parsedResponse.action,
-      parameters: parsedResponse.data,
+      parameters: parameters,
     };
   }
 }
 
 export default new OpenAIService();
+
 

@@ -370,6 +370,71 @@ class ProjectManagementService {
   }
 
   /**
+   * Update document/photo description
+   */
+  async updateDocumentDescription(projectId: string, documentId: string, description: string): Promise<void> {
+    await this.initialize();
+    if (!this.supabase) {
+      throw new Error('Supabase not configured');
+    }
+
+    const userId = await this.getUserId();
+    if (!userId) {
+      throw new Error('User not authenticated');
+    }
+
+    const { error } = await this.supabase
+      .from('project_documents')
+      .update({ description })
+      .eq('id', documentId)
+      .eq('project_id', projectId);
+
+    if (error) throw error;
+  }
+
+  /**
+   * Update work description for photos/documents
+   */
+  async updateDocumentWorkDescription(projectId: string, documentIds: string[], workDescription: string): Promise<void> {
+    await this.initialize();
+    if (!this.supabase) {
+      throw new Error('Supabase not configured');
+    }
+
+    const userId = await this.getUserId();
+    if (!userId) {
+      throw new Error('User not authenticated');
+    }
+
+    // Update each document with work description
+    for (const documentId of documentIds) {
+      // Get current description
+      const { data: doc } = await this.supabase
+        .from('project_documents')
+        .select('description')
+        .eq('id', documentId)
+        .eq('project_id', projectId)
+        .single();
+
+      const currentDescription = doc?.description || '';
+      const workPrefix = 'WORK: ';
+      const newDescription = currentDescription 
+        ? `${currentDescription}\n\n${workPrefix}${workDescription}`
+        : `${workPrefix}${workDescription}`;
+
+      const { error } = await this.supabase
+        .from('project_documents')
+        .update({ description: newDescription })
+        .eq('id', documentId)
+        .eq('project_id', projectId);
+
+      if (error) {
+        console.error(`Error updating document ${documentId}:`, error);
+      }
+    }
+  }
+
+  /**
    * Delete a document
    */
   async deleteDocument(projectId: string, documentId: string): Promise<void> {

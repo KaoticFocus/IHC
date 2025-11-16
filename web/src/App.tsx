@@ -27,6 +27,7 @@ import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { ScopeOfWork } from './types/ScopeOfWork';
 import { AIAnalysis } from './types/AIAnalysis';
 import ConsultationService from './services/ConsultationService';
+import ProjectManagementService from './services/ProjectManagementService';
 
 export const App: React.FC = () => {
   const auth = useAuth();
@@ -49,6 +50,9 @@ export const App: React.FC = () => {
   const recordingStartTimeRef = useRef<number>(0);
   const durationIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const [currentConsultationId, setCurrentConsultationId] = useState<string | null>(null);
+  const [selectedPhotoIds, setSelectedPhotoIds] = useState<string[]>([]);
+  const [currentProjectId, setCurrentProjectId] = useState<string | null>(null);
+  const [currentConsultationContext, setCurrentConsultationContext] = useState<string | null>(null);
 
   // Load leads on startup
   useEffect(() => {
@@ -163,6 +167,132 @@ export const App: React.FC = () => {
         startRecording();
       } else {
         stopRecording();
+      }
+    });
+
+    CommandProcessor.setProjectCreationCallback(async (projectData: any) => {
+      try {
+        await ProjectManagementService.initialize();
+        if (!ProjectManagementService.isAvailable()) {
+          throw new Error('Project management requires authentication. Please sign in.');
+        }
+
+        const project = await ProjectManagementService.createProject({
+          name: projectData.name || projectData.title || 'New Project',
+          description: projectData.description,
+          clientName: projectData.clientName,
+          clientEmail: projectData.clientEmail,
+          clientPhone: projectData.clientPhone,
+          address: projectData.address,
+          status: projectData.status || 'planning',
+        });
+
+        setCurrentProjectId(project.id);
+        ErrorService.handleSuccess(`Project "${project.name}" created successfully`);
+        
+        // Navigate to projects screen
+        handleScreenChange('projects');
+      } catch (error) {
+        ErrorService.handleError(error, 'createProject');
+        throw error;
+      }
+    });
+
+    CommandProcessor.setNoteDictationCallback(async (note: string, targetId?: string, targetType?: 'project' | 'consultation') => {
+      try {
+        const id = targetId || currentProjectId || currentConsultationId;
+        const type = targetType || (currentProjectId ? 'project' : currentConsultationId ? 'consultation' : undefined);
+
+        if (!id || !type) {
+          // If no specific target, add to current consultation if recording, or show error
+          if (currentConsultationId) {
+            await ConsultationService.updateConsultation({
+              id: currentConsultationId,
+              notes: note,
+            });
+            ErrorService.handleSuccess('Note saved to consultation');
+          } else {
+            throw new Error('No project or consultation selected. Please select one first or start a recording.');
+          }
+          return;
+        }
+
+        if (type === 'project') {
+          // For projects, we'd need to add a notes field or use description
+          // For now, update the project description
+          const project = await ProjectManagementService.getProject(id);
+          if (project) {
+            const updatedDescription = project.description 
+              ? `${project.description}\n\nNote: ${note}`
+              : `Note: ${note}`;
+            await ProjectManagementService.updateProject({
+              id,
+              description: updatedDescription,
+            });
+            ErrorService.handleSuccess('Note added to project');
+          }
+        } else if (type === 'consultation') {
+          await ConsultationService.updateConsultation({
+            id,
+            notes: note,
+          });
+          ErrorService.handleSuccess('Note saved to consultation');
+        }
+      } catch (error) {
+        ErrorService.handleError(error, 'dictateNote');
+        throw error;
+      }
+    });
+
+    CommandProcessor.setPhotoDescriptionCallback(async (description: string, photoIds: string[]) => {
+      try {
+        const ids = photoIds.length > 0 ? photoIds : selectedPhotoIds;
+        
+        if (ids.length === 0) {
+          throw new Error('No photos selected. Please select photos first.');
+        }
+
+        // Determine if photos are from consultation or project
+        if (currentConsultationId) {
+          for (const photoId of ids) {
+            await ConsultationService.updatePhotoDescription(currentConsultationId, photoId, description);
+          }
+          ErrorService.handleSuccess(`Description saved for ${ids.length} photo${ids.length > 1 ? 's' : ''}`);
+        } else if (currentProjectId) {
+          for (const photoId of ids) {
+            await ProjectManagementService.updateDocumentDescription(currentProjectId, photoId, description);
+          }
+          ErrorService.handleSuccess(`Description saved for ${ids.length} photo${ids.length > 1 ? 's' : ''}`);
+        } else {
+          throw new Error('No project or consultation context. Please open a project or consultation first.');
+        }
+      } catch (error) {
+        ErrorService.handleError(error, 'describePhoto');
+        throw error;
+      }
+    });
+
+    CommandProcessor.setWorkDescriptionCallback(async (description: string, photoIds: string[]) => {
+      try {
+        const ids = photoIds.length > 0 ? photoIds : selectedPhotoIds;
+        
+        if (ids.length === 0) {
+          throw new Error('No photos selected. Please select photos first.');
+        }
+
+        // Determine if photos are from consultation or project
+        if (currentConsultationId) {
+          await ConsultationService.updatePhotoWorkDescription(currentConsultationId, ids, description);
+          ErrorService.handleSuccess(`Work description saved for ${ids.length} photo${ids.length > 1 ? 's' : ''}`);
+        } else if (currentProjectId) {
+          await ProjectManagementService.updateDocumentWorkDescription(currentProjectId, ids, description);
+          ErrorService.handleSuccess(`Work description saved for ${ids.length} photo${ids.length > 1 ? 's' : ''}`);
+        } else {
+          throw new Error('No project or consultation context. Please open a project or consultation first.');
+        }
+      } catch (error) {
+        ErrorService.handleError(error, 'describeWork');
+        throw error;
       }
     });
   };
@@ -536,7 +666,13 @@ export const App: React.FC = () => {
 
         {currentScreen === 'consultations' && (
           <Suspense fallback={<CircularProgress />}>
-            <ConsultationScreen />
+            <ConsultationScreen 
+              onPhotoSelectionChange={(photoIds) => setSelectedPhotoIds(photoIds)}
+              onConsultationSelect={(consultationId) => {
+                setCurrentConsultationId(consultationId);
+                setCurrentConsultationContext(consultationId);
+              }}
+            />
           </Suspense>
         )}
 
