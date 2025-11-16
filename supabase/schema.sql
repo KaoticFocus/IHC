@@ -128,6 +128,38 @@ CREATE TABLE IF NOT EXISTS public.consultation_photos (
   uploaded_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- Projects table
+CREATE TABLE IF NOT EXISTS public.projects (
+  id TEXT PRIMARY KEY,
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  description TEXT,
+  status TEXT NOT NULL DEFAULT 'planning' CHECK (status IN ('planning', 'in_progress', 'completed', 'on_hold', 'cancelled')),
+  client_name TEXT,
+  client_email TEXT,
+  client_phone TEXT,
+  address TEXT,
+  start_date TIMESTAMPTZ,
+  end_date TIMESTAMPTZ,
+  budget DECIMAL(10, 2),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Project documents table
+CREATE TABLE IF NOT EXISTS public.project_documents (
+  id TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL REFERENCES public.projects(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  type TEXT NOT NULL CHECK (type IN ('document', 'image', 'pdf', 'other')),
+  mime_type TEXT NOT NULL,
+  file_path TEXT NOT NULL,
+  file_size BIGINT NOT NULL,
+  description TEXT,
+  uploaded_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 -- Create indexes for better query performance
 CREATE INDEX IF NOT EXISTS idx_leads_user_id ON public.leads(user_id);
 CREATE INDEX IF NOT EXISTS idx_leads_created_at ON public.leads(created_at DESC);
@@ -141,6 +173,9 @@ CREATE INDEX IF NOT EXISTS idx_scope_of_work_user_id ON public.scope_of_work(use
 CREATE INDEX IF NOT EXISTS idx_consultations_user_id ON public.consultations(user_id);
 CREATE INDEX IF NOT EXISTS idx_consultations_consultation_date ON public.consultations(consultation_date DESC);
 CREATE INDEX IF NOT EXISTS idx_consultation_photos_consultation_id ON public.consultation_photos(consultation_id);
+CREATE INDEX IF NOT EXISTS idx_projects_user_id ON public.projects(user_id);
+CREATE INDEX IF NOT EXISTS idx_projects_status ON public.projects(status);
+CREATE INDEX IF NOT EXISTS idx_project_documents_project_id ON public.project_documents(project_id);
 
 -- Enable Row Level Security (RLS)
 ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
@@ -152,6 +187,8 @@ ALTER TABLE public.scope_of_work ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.user_settings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.consultations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.consultation_photos ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.projects ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.project_documents ENABLE ROW LEVEL SECURITY;
 
 -- RLS Policies: Users can only access their own data
 CREATE POLICY "Users can view own profile"
@@ -200,6 +237,20 @@ CREATE POLICY "Users can manage own consultation photos"
     )
   );
 
+CREATE POLICY "Users can manage own projects"
+  ON public.projects FOR ALL
+  USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can manage own project documents"
+  ON public.project_documents FOR ALL
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.projects
+      WHERE projects.id = project_documents.project_id
+      AND projects.user_id = auth.uid()
+    )
+  );
+
 -- Create Storage Buckets
 -- Run these in Supabase Dashboard > Storage
 
@@ -211,6 +262,9 @@ CREATE POLICY "Users can manage own consultation photos"
 
 -- Bucket for consultation photos
 -- INSERT INTO storage.buckets (id, name, public) VALUES ('consultation-photos', 'consultation-photos', false);
+
+-- Bucket for project files
+-- INSERT INTO storage.buckets (id, name, public) VALUES ('project-files', 'project-files', false);
 
 -- Storage Policies
 -- CREATE POLICY "Users can upload own recordings"
@@ -249,6 +303,18 @@ CREATE POLICY "Users can manage own consultation photos"
 --   ON storage.objects FOR DELETE
 --   USING (bucket_id = 'consultation-photos' AND auth.uid()::text = (storage.foldername(name))[1]);
 
+-- CREATE POLICY "Users can upload own project files"
+--   ON storage.objects FOR INSERT
+--   WITH CHECK (bucket_id = 'project-files' AND auth.uid()::text = (storage.foldername(name))[1]);
+
+-- CREATE POLICY "Users can view own project files"
+--   ON storage.objects FOR SELECT
+--   USING (bucket_id = 'project-files' AND auth.uid()::text = (storage.foldername(name))[1]);
+
+-- CREATE POLICY "Users can delete own project files"
+--   ON storage.objects FOR DELETE
+--   USING (bucket_id = 'project-files' AND auth.uid()::text = (storage.foldername(name))[1]);
+
 -- Functions for updated_at timestamps
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$
@@ -271,5 +337,11 @@ CREATE TRIGGER update_user_settings_updated_at BEFORE UPDATE ON public.user_sett
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 CREATE TRIGGER update_consultations_updated_at BEFORE UPDATE ON public.consultations
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_projects_updated_at BEFORE UPDATE ON public.projects
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_project_documents_updated_at BEFORE UPDATE ON public.project_documents
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 

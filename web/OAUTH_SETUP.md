@@ -10,18 +10,22 @@ This app supports Google and Apple sign-in via Supabase OAuth. Follow these step
    - Navigate to "APIs & Services" > "Credentials"
    - Click "Create Credentials" > "OAuth client ID"
    - Choose "Web application"
-   - Add authorized redirect URIs:
-     - `https://xppnphkaeczptxuhmpuv.supabase.co/auth/v1/callback`
+   - Add authorized redirect URIs (add ALL of these):
+     - `https://xppnphkaeczptxuhmpuv.supabase.co/auth/v1/callback` (REQUIRED - Supabase callback)
      - `http://localhost:5173/auth/callback` (for local development)
-     - Your Netlify URL: `https://your-site.netlify.app/auth/callback`
+     - `http://localhost:3000/auth/callback` (alternative local port)
+     - Your Netlify URL: `https://your-site.netlify.app/auth/callback` (replace with your actual Netlify URL)
    - Copy the Client ID and Client Secret
 
 2. **Configure in Supabase:**
    - Go to your Supabase dashboard: https://supabase.com/dashboard/project/xppnphkaeczptxuhmpuv
-   - Navigate to Settings > Authentication > Providers
-   - Enable "Google"
-   - Paste your Google Client ID and Client Secret
-   - Save
+   - Navigate to **Settings** > **Authentication** > **Providers**
+   - Find **"Google"** in the list of providers
+   - **Toggle the switch to enable Google** (this is the most important step!)
+   - Paste your Google **Client ID** in the "Client ID" field
+   - Paste your Google **Client Secret** in the "Client Secret" field
+   - Click **"Save"** at the bottom of the page
+   - **Verify**: The Google provider should show as "Enabled" with a green checkmark
 
 ## Apple OAuth Setup
 
