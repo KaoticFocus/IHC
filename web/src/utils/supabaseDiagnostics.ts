@@ -58,7 +58,7 @@ export async function diagnoseSupabaseConnection() {
 
     // Step 3: Test basic connection
     try {
-      const { data, error } = await supabase.from('users').select('count').limit(0);
+      const { error } = await supabase.from('users').select('count').limit(0);
       if (error && error.code !== 'PGRST116') {
         // PGRST116 is "no rows returned" which is fine for this test
         diagnostics.push({
