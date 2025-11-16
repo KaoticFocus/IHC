@@ -127,7 +127,7 @@ export function AuthProvider({ children, supabaseUrl, supabaseAnonKey }: AuthPro
     }
 
     try {
-      const { data, error } = await supabase.auth.signInWithOAuth({
+      const { error } = await supabase.auth.signInWithOAuth({
         provider,
         options: {
           redirectTo: `${window.location.origin}/auth/callback`,
