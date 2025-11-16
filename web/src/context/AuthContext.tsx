@@ -123,18 +123,34 @@ export function AuthProvider({ children, supabaseUrl, supabaseAnonKey }: AuthPro
 
   const signInWithOAuth = async (provider: 'google' | 'apple') => {
     if (!supabase) {
-      throw new Error('Supabase not configured');
+      throw new Error('Supabase not configured. Please check your environment variables (VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY).');
     }
 
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider,
-      options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
-      },
-    });
+    try {
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider,
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+        },
+      });
 
-    if (error) throw error;
-    // OAuth will redirect, so no need to update state here
+      if (error) {
+        // Provide more helpful error messages
+        if (error.message?.includes('not enabled') || error.message?.includes('Unsupported provider')) {
+          throw new Error(
+            `${provider.charAt(0).toUpperCase() + provider.slice(1)} OAuth is not enabled in your Supabase dashboard. ` +
+            `Please go to: https://supabase.com/dashboard/project/xppnphkaeczptxuhmpuv/auth/providers ` +
+            `and enable the ${provider} provider by toggling it ON.`
+          );
+        }
+        throw error;
+      }
+      
+      // OAuth will redirect, so no need to update state here
+    } catch (err: any) {
+      console.error(`OAuth sign-in error for ${provider}:`, err);
+      throw err;
+    }
   };
 
   const signOut = async () => {

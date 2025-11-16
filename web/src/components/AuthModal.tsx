@@ -125,7 +125,19 @@ export const AuthModal: React.FC<AuthModalProps> = ({ open, onClose }) => {
       // OAuth will redirect, so we don't need to close the modal here
       // Note: loading state will remain true until redirect happens
     } catch (err: any) {
-      setError(err.message || `Failed to sign in with ${provider}. Please make sure Supabase is configured and the ${provider} provider is enabled.`);
+      const errorMessage = err.message || `Failed to sign in with ${provider}.`;
+      
+      // Show a more helpful error message
+      if (errorMessage.includes('not enabled') || errorMessage.includes('Unsupported provider')) {
+        setError(
+          `${provider.charAt(0).toUpperCase() + provider.slice(1)} OAuth is not enabled in Supabase. ` +
+          `Go to: https://supabase.com/dashboard/project/xppnphkaeczptxuhmpuv/auth/providers ` +
+          `and toggle ${provider.charAt(0).toUpperCase() + provider.slice(1)} ON, then add your Client ID and Secret.`
+        );
+      } else {
+        setError(errorMessage);
+      }
+      
       ErrorService.handleError(err, `oauthSignIn-${provider}`);
       setLoading(false);
     }
