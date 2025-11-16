@@ -20,7 +20,10 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
           }}
           preventDuplicate
         >
-          <AuthProvider>
+          <AuthProvider
+            supabaseUrl={import.meta.env.VITE_SUPABASE_URL}
+            supabaseAnonKey={import.meta.env.VITE_SUPABASE_ANON_KEY}
+          >
             <App />
           </AuthProvider>
         </SnackbarProvider>

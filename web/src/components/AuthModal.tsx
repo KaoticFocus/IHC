@@ -33,6 +33,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({ open, onClose }) => {
   const [error, setError] = useState<string | null>(null);
 
   const { signIn, signUp, resetPassword, signInWithOAuth } = useAuth();
+  
+  // Check if Supabase is configured
+  const isSupabaseConfigured = !!(
+    import.meta.env.VITE_SUPABASE_URL && 
+    import.meta.env.VITE_SUPABASE_ANON_KEY
+  );
 
   const handleSignIn = async () => {
     if (!email || !password) {
@@ -117,8 +123,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({ open, onClose }) => {
     try {
       await signInWithOAuth(provider);
       // OAuth will redirect, so we don't need to close the modal here
+      // Note: loading state will remain true until redirect happens
     } catch (err: any) {
-      setError(err.message || `Failed to sign in with ${provider}`);
+      setError(err.message || `Failed to sign in with ${provider}. Please make sure Supabase is configured and the ${provider} provider is enabled.`);
       ErrorService.handleError(err, `oauthSignIn-${provider}`);
       setLoading(false);
     }
@@ -142,13 +149,18 @@ export const AuthModal: React.FC<AuthModalProps> = ({ open, onClose }) => {
 
         {tab === 0 && (
           <Box sx={{ pt: 2 }}>
+            {!isSupabaseConfigured && (
+              <Alert severity="warning" sx={{ mb: 2 }}>
+                Supabase is not configured. OAuth sign-in requires Supabase credentials. Please configure Supabase in Settings or environment variables.
+              </Alert>
+            )}
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mb: 2 }}>
               <Button
                 variant="outlined"
                 fullWidth
                 startIcon={<Google />}
                 onClick={() => handleOAuthSignIn('google')}
-                disabled={loading}
+                disabled={loading || !isSupabaseConfigured}
                 sx={{
                   textTransform: 'none',
                   py: 1.5,
@@ -166,7 +178,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ open, onClose }) => {
                 fullWidth
                 startIcon={<Apple />}
                 onClick={() => handleOAuthSignIn('apple')}
-                disabled={loading}
+                disabled={loading || !isSupabaseConfigured}
                 sx={{
                   textTransform: 'none',
                   py: 1.5,
@@ -218,13 +230,18 @@ export const AuthModal: React.FC<AuthModalProps> = ({ open, onClose }) => {
 
         {tab === 1 && (
           <Box sx={{ pt: 2 }}>
+            {!isSupabaseConfigured && (
+              <Alert severity="warning" sx={{ mb: 2 }}>
+                Supabase is not configured. OAuth sign-up requires Supabase credentials. Please configure Supabase in Settings or environment variables.
+              </Alert>
+            )}
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mb: 2 }}>
               <Button
                 variant="outlined"
                 fullWidth
                 startIcon={<Google />}
                 onClick={() => handleOAuthSignIn('google')}
-                disabled={loading}
+                disabled={loading || !isSupabaseConfigured}
                 sx={{
                   textTransform: 'none',
                   py: 1.5,
@@ -242,7 +259,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ open, onClose }) => {
                 fullWidth
                 startIcon={<Apple />}
                 onClick={() => handleOAuthSignIn('apple')}
-                disabled={loading}
+                disabled={loading || !isSupabaseConfigured}
                 sx={{
                   textTransform: 'none',
                   py: 1.5,

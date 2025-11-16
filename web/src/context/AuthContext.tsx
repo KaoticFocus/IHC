@@ -38,22 +38,24 @@ export function AuthProvider({ children, supabaseUrl, supabaseAnonKey }: AuthPro
   const [supabase, setSupabase] = useState<SupabaseClient | null>(null);
 
   useEffect(() => {
+    let client: SupabaseClient | null = null;
+    
     // Initialize Supabase
     if (supabaseUrl && supabaseAnonKey) {
-      const client = initSupabase(supabaseUrl, supabaseAnonKey);
+      client = initSupabase(supabaseUrl, supabaseAnonKey);
       setSupabase(client);
     } else if (isSupabaseConfigured()) {
-      const client = getSupabaseClient();
+      client = getSupabaseClient();
       setSupabase(client);
     }
 
-    if (!supabase) {
+    if (!client) {
       setLoading(false);
       return;
     }
 
     // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    client.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
@@ -62,7 +64,7 @@ export function AuthProvider({ children, supabaseUrl, supabaseAnonKey }: AuthPro
     // Listen for auth changes
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    } = client.auth.onAuthStateChange((_event, session) => {
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
