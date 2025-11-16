@@ -67,6 +67,7 @@ class ConsultationService {
     const consultation: Omit<Consultation, 'photos'> = {
       id: consultationId,
       userId,
+      projectId: input.projectId,
       title: input.title,
       clientName: input.clientName,
       clientEmail: input.clientEmail,
@@ -86,6 +87,7 @@ class ConsultationService {
       .insert({
         id: consultationId,
         user_id: userId,
+        project_id: consultation.projectId,
         title: consultation.title,
         client_name: consultation.clientName,
         client_email: consultation.clientEmail,
@@ -192,6 +194,7 @@ class ConsultationService {
     };
 
     if (input.title !== undefined) updateData.title = input.title;
+    if (input.projectId !== undefined) updateData.project_id = input.projectId;
     if (input.clientName !== undefined) updateData.client_name = input.clientName;
     if (input.clientEmail !== undefined) updateData.client_email = input.clientEmail;
     if (input.clientPhone !== undefined) updateData.client_phone = input.clientPhone;
@@ -479,6 +482,7 @@ class ConsultationService {
     return {
       id: dbConsultation.id,
       userId: dbConsultation.user_id,
+      projectId: dbConsultation.project_id,
       title: dbConsultation.title,
       clientName: dbConsultation.client_name,
       clientEmail: dbConsultation.client_email,

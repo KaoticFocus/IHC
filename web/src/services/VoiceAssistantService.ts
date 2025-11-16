@@ -55,6 +55,7 @@ class VoiceAssistantService {
         };
       }
 
+      // Generate speech for the response
       if (response.text) {
         try {
           const speechBlob = await OpenAIService.generateSpeech(response.text);

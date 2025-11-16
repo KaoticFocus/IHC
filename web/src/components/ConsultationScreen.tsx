@@ -38,11 +38,13 @@ import ConsultationService from '../services/ConsultationService';
 import { useAuth } from '../context/AuthContext';
 
 interface ConsultationScreenProps {
+  currentProjectId?: string | null; // Required for associating images with project and client
   onPhotoSelectionChange?: (photoIds: string[]) => void;
   onConsultationSelect?: (consultationId: string | null) => void;
 }
 
 export const ConsultationScreen: React.FC<ConsultationScreenProps> = ({ 
+  currentProjectId,
   onPhotoSelectionChange,
   onConsultationSelect,
 }) => {
@@ -117,9 +119,17 @@ export const ConsultationScreen: React.FC<ConsultationScreenProps> = ({
   };
 
   const handleCreateConsultation = async () => {
+    if (!currentProjectId) {
+      setError('Please select a project first. Consultations and images must be associated with a project and client.');
+      return;
+    }
+
     try {
       setError(null);
-      const newConsultation = await ConsultationService.createConsultation(consultationForm);
+      const newConsultation = await ConsultationService.createConsultation({
+        ...consultationForm,
+        projectId: currentProjectId,
+      });
       setConsultations([newConsultation, ...consultations]);
       setCreateDialogOpen(false);
       setConsultationForm({
@@ -266,6 +276,12 @@ export const ConsultationScreen: React.FC<ConsultationScreenProps> = ({
       {error && (
         <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
           {error}
+        </Alert>
+      )}
+
+      {!currentProjectId && (
+        <Alert severity="warning" sx={{ mb: 2 }}>
+          Please select a project first. All consultations and images must be associated with a project and client.
         </Alert>
       )}
 

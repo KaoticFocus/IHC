@@ -22,6 +22,7 @@ import AudioService from '../services/AudioService';
 import ExtensionService from '../services/ExtensionService';
 import CommandProcessor from '../services/CommandProcessor';
 import WakeWordService from '../services/WakeWordService';
+import OpenAIService from '../services/OpenAIService';
 import { HelpTooltip } from './HelpTooltip';
 
 interface VoiceAssistantProps {
@@ -232,6 +233,29 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({ currentScreen, o
         
         if (result.success) {
           setActionFeedback(result.message);
+          
+          // If project was selected, update the response text and regenerate speech
+          if (response.action === 'select_project' && result.message) {
+            setLastResponse({
+              ...response,
+              text: result.message,
+            });
+            
+            // Regenerate speech with confirmation message
+            try {
+              const confirmationSpeech = await OpenAIService.generateSpeech(result.message);
+              const audioUrl = URL.createObjectURL(confirmationSpeech);
+              audioRef.current = new Audio(audioUrl);
+              audioRef.current.onended = () => {
+                URL.revokeObjectURL(audioUrl);
+                setIsSpeaking(false);
+              };
+              setIsSpeaking(true);
+              await audioRef.current.play();
+            } catch (error) {
+              console.warn('Failed to generate confirmation speech:', error);
+            }
+          }
         } else {
           setActionFeedback(`⚠️ ${result.message}`);
         }

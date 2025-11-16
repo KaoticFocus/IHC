@@ -12,6 +12,7 @@ export default defineConfig({
       strategies: 'generateSW',
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}'],
+        // Use CacheFirst for static assets to improve load speed
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/api\.openai\.com\/.*/i,
@@ -22,7 +23,7 @@ export default defineConfig({
                 maxEntries: 50,
                 maxAgeSeconds: 60 * 60 * 24 // 24 hours
               },
-              networkTimeoutSeconds: 10
+              networkTimeoutSeconds: 5 // Reduced timeout
             }
           },
           {
@@ -33,14 +34,20 @@ export default defineConfig({
               expiration: {
                 maxEntries: 100,
                 maxAgeSeconds: 60 * 60 * 24 // 24 hours
-              }
+              },
+              networkTimeoutSeconds: 5 // Reduced timeout
             }
           }
-        ]
+        ],
+        // Skip waiting to avoid blocking
+        skipWaiting: true,
+        clientsClaim: true,
+        // Clean up old caches
+        cleanupOutdatedCaches: true,
       },
       manifest: {
-        name: 'IHC Conversation Recorder',
-        short_name: 'IHC Recorder',
+        name: 'ConsultFlow Pro',
+        short_name: 'ConsultFlow Pro',
         description: 'Professional conversation recorder for contractors with AI-powered transcription and analysis',
         theme_color: '#1976d2',
         background_color: '#ffffff',

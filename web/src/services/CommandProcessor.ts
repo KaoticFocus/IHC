@@ -10,6 +10,7 @@ class CommandProcessor {
   private navigationCallback?: (screen: string) => void;
   private recordingCallback?: (action: 'start' | 'stop') => void;
   private projectCreationCallback?: (projectData: any) => Promise<void>;
+  private projectSelectionCallback?: (projectId: string, projectName: string) => Promise<{ userName: string }>;
   private noteDictationCallback?: (note: string, targetId?: string, targetType?: 'project' | 'consultation') => Promise<void>;
   private photoDescriptionCallback?: (description: string, photoIds: string[]) => Promise<void>;
   private workDescriptionCallback?: (description: string, photoIds: string[]) => Promise<void>;
@@ -24,6 +25,10 @@ class CommandProcessor {
 
   setProjectCreationCallback(callback: (projectData: any) => Promise<void>) {
     this.projectCreationCallback = callback;
+  }
+
+  setProjectSelectionCallback(callback: (projectId: string, projectName: string) => Promise<{ userName: string }>) {
+    this.projectSelectionCallback = callback;
   }
 
   setNoteDictationCallback(callback: (note: string, targetId?: string, targetType?: 'project' | 'consultation') => Promise<void>) {
@@ -83,6 +88,9 @@ class CommandProcessor {
         case 'describe_work':
           return await this.handleDescribeWork(parameters);
         
+        case 'select_project':
+          return await this.handleSelectProject(parameters);
+        
         default:
           return {
             success: false,
@@ -119,7 +127,18 @@ class CommandProcessor {
     };
   }
 
-  private async handleStartRecording(_parameters: any): Promise<CommandResult> {
+  private async handleStartRecording(parameters: any): Promise<CommandResult> {
+    // Check if project is required but not selected
+    const requiresProject = parameters.requiresProject !== false;
+    
+    if (requiresProject && !parameters.projectId && !parameters.projectName) {
+      return {
+        success: false,
+        message: 'Please select a project first. Say something like "Hey Flow, the following information will go under the [project name] job" before starting a recording.',
+        data: { action: 'start_recording', requiresProject: true },
+      };
+    }
+
     if (this.recordingCallback) {
       this.recordingCallback('start');
     }
@@ -305,6 +324,38 @@ class CommandProcessor {
     };
   }
 
+  private async handleSelectProject(parameters: any): Promise<CommandResult> {
+    const projectName = parameters.projectName || parameters.name || parameters.project;
+    
+    if (!projectName) {
+      return {
+        success: false,
+        message: 'Which project would you like to select? Please say the project name.',
+      };
+    }
+
+    if (this.projectSelectionCallback) {
+      try {
+        const result = await this.projectSelectionCallback('', projectName);
+        return {
+          success: true,
+          message: `I understand, ${result.userName}, the following information will go under the ${projectName} job.`,
+          data: { action: 'select_project', projectName },
+        };
+      } catch (error) {
+        return {
+          success: false,
+          message: `I couldn't find a project named "${projectName}". Please check the project name or create a new project first.`,
+        };
+      }
+    }
+
+    return {
+      success: false,
+      message: 'Project selection is not available.',
+    };
+  }
+
   private async handleCreateProject(parameters: any): Promise<CommandResult> {
     const projectData = parameters.projectData || parameters;
     
@@ -464,6 +515,7 @@ class CommandProcessor {
       case 'main':
         return [
           ...baseCommands,
+          'select project',
           'start recording',
           'go to settings',
           'go to projects',

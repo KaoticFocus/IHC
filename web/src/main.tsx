@@ -7,32 +7,47 @@ import { AuthProvider } from './context/AuthContext';
 import { ThemeModeProvider } from './context/ThemeContext';
 import { CssBaseline } from '@mui/material';
 
-// Register service worker for PWA
+// Register service worker for PWA (non-blocking, async)
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
+  // Use requestIdleCallback if available, otherwise setTimeout
+  const registerSW = () => {
     navigator.serviceWorker.register('/sw.js')
       .then((registration) => {
         console.log('[Service Worker] Registration successful:', registration.scope);
         
-        // Check for updates
+        // Check for updates (non-blocking)
         registration.addEventListener('updatefound', () => {
           const newWorker = registration.installing;
           if (newWorker) {
             newWorker.addEventListener('statechange', () => {
               if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                // New service worker available, prompt user to reload
-                if (confirm('New version available! Reload to update?')) {
-                  window.location.reload();
-                }
+                // New service worker available, but don't prompt immediately
+                // Let user continue using the app, update will apply on next reload
+                console.log('[Service Worker] New version available, will update on next reload');
               }
             });
           }
         });
       })
       .catch((error) => {
-        console.log('[Service Worker] Registration failed:', error);
+        console.warn('[Service Worker] Registration failed:', error);
+        // Don't block app if service worker fails
       });
-  });
+  };
+
+  // Register after page load, but don't block rendering
+  if (document.readyState === 'complete') {
+    // Page already loaded, register immediately
+    setTimeout(registerSW, 100);
+  } else {
+    // Wait for page load, but with timeout
+    window.addEventListener('load', () => {
+      setTimeout(registerSW, 100);
+    });
+    
+    // Fallback: register after 2 seconds even if load event hasn't fired
+    setTimeout(registerSW, 2000);
+  }
 }
 
 // Prevent default browser behaviors on mobile

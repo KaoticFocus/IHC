@@ -130,15 +130,41 @@ export function AuthProvider({ children, supabaseUrl, supabaseAnonKey }: AuthPro
       return;
     }
 
-    // Get initial session and profile
-    client.auth.getSession().then(async ({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        await loadUserProfile(client!, session.user.id);
-      }
+    // Get initial session and profile with timeout
+    const sessionTimeout = setTimeout(() => {
+      console.warn('[AuthContext] Session check timed out, proceeding without session');
       setLoading(false);
-    });
+    }, 5000); // 5 second timeout
+
+    client.auth.getSession()
+      .then(async ({ data: { session } }) => {
+        clearTimeout(sessionTimeout);
+        setSession(session);
+        setUser(session?.user ?? null);
+        if (session?.user) {
+          // Load profile with timeout
+          const profileTimeout = setTimeout(() => {
+            console.warn('[AuthContext] Profile load timed out');
+            setLoading(false);
+          }, 3000);
+          
+          try {
+            await loadUserProfile(client!, session.user.id);
+          } catch (err) {
+            console.error('[AuthContext] Error loading profile:', err);
+          } finally {
+            clearTimeout(profileTimeout);
+            setLoading(false);
+          }
+        } else {
+          setLoading(false);
+        }
+      })
+      .catch((error) => {
+        clearTimeout(sessionTimeout);
+        console.error('[AuthContext] Error getting session:', error);
+        setLoading(false);
+      });
 
     // Listen for auth changes
     const {

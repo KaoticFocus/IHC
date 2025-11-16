@@ -369,13 +369,31 @@ AVAILABLE ACTIONS:
 }
 Examples: "go to projects", "open consultations", "show me documents", "go back"
 
-2. RECORDING - Control recording:
+2. SELECT PROJECT - Select a project for recording context:
+{
+  "action": "select_project",
+  "response": "I understand, [user name], the following information will go under the [project name] job.",
+  "data": {
+    "projectName": "Project Name"
+  }
+}
+Examples: 
+- "Hey Flow, the following information will go under the smith job"
+- "This is for the kitchen remodel project"
+- "Set project to bathroom renovation"
+- "The following will go under the johnson job"
+
+3. RECORDING - Control recording (requires project to be selected first):
 {
   "action": "start_recording" or "stop_recording",
   "response": "Starting/Stopping recording...",
-  "data": {}
+  "data": {
+    "projectId": "optional project id if already selected",
+    "projectName": "optional project name"
+  }
 }
 Examples: "start recording", "stop recording", "begin recording"
+Note: If user tries to start recording without selecting a project, respond with action "select_project" requirement message.
 
 3. CREATE PROJECT - Create a new project:
 {
@@ -491,6 +509,8 @@ Examples:
 IMPORTANT RULES:
 - Always respond with valid JSON only. No extra text.
 - Extract all relevant information from the user's command
+- PROJECT SELECTION: If user says phrases like "the following information will go under [project] job", "this is for [project]", "set project to [project]", "the following will go under the [project] job", extract the project name and use action "select_project"
+- RECORDING REQUIREMENT: Before starting a recording, a project MUST be selected. If user tries to start recording without selecting a project, respond with a message asking them to select a project first (use action "select_project" with a helpful message).
 - For project creation, try to extract name, client info, address if mentioned
 - For notes, capture everything the user says after "note", "dictate", "add note", etc.
 - For photo descriptions, capture what the photo shows

@@ -9,6 +9,7 @@ import { KeyboardShortcutsModal } from './components/KeyboardShortcutsModal';
 import { TooltipProvider } from './context/TooltipContext';
 import { useAuth } from './context/AuthContext';
 import HybridStorageService from './services/HybridStorageService';
+import { getSupabaseClient } from './services/SupabaseService';
 
 // Lazy load heavy components for code splitting
 const DocumentManager = lazy(() => import('./components/DocumentManager').then(m => ({ default: m.DocumentManager })));
@@ -56,8 +57,46 @@ export const App: React.FC = () => {
   const [selectedPhotoIds, setSelectedPhotoIds] = useState<string[]>([]);
   const [currentProjectId, setCurrentProjectId] = useState<string | null>(null);
 
-  // Load leads on startup
+  // Track if initialization has completed to prevent re-initialization
+  const initializedRef = useRef(false);
+  
+  // Handle app visibility changes (when switching back to app)
   useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        // App is visible again - refresh auth session if needed (non-blocking)
+        const supabase = getSupabaseClient();
+        if (auth.user && supabase) {
+          // Silently refresh session in background with timeout
+          const refreshTimeout = setTimeout(() => {
+            console.warn('[App] Session refresh timed out');
+          }, 2000);
+          
+          supabase.auth.getSession()
+            .then(() => {
+              clearTimeout(refreshTimeout);
+            })
+            .catch(err => {
+              clearTimeout(refreshTimeout);
+              console.warn('[App] Failed to refresh session on visibility change:', err);
+            });
+        }
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [auth.user]);
+  
+  // Load leads on startup - only run once
+  useEffect(() => {
+    // Skip if already initialized or auth is still loading
+    if (initializedRef.current || auth.loading) {
+      return;
+    }
+
     const initializeApp = async () => {
       try {
         setIsLoading(true);
@@ -79,32 +118,49 @@ export const App: React.FC = () => {
           ErrorService.handleSuccess('Successfully signed in!');
         }
         
-        // Enable cloud sync if authenticated
-        if (auth.user) {
-          await HybridStorageService.enableCloudSync();
-          // Sync from cloud on startup
-          await HybridStorageService.syncFromCloud();
-        }
-        
-        // Load audio settings
-        await AudioService.loadSettings();
-        
-        // Check OpenAI status
-        await checkOpenAIStatus();
-        
-        // Setup command processor
+        // Setup command processor first (non-blocking)
         setupCommandProcessor();
         
-        ErrorService.handleSuccess('App loaded successfully');
+        // Load audio settings (non-blocking, cached)
+        AudioService.loadSettings().catch(err => {
+          console.warn('[App] Failed to load audio settings:', err);
+        });
+        
+        // Check OpenAI status (non-blocking)
+        checkOpenAIStatus().catch(err => {
+          console.warn('[App] Failed to check OpenAI status:', err);
+        });
+        
+        // Enable cloud sync if authenticated (with timeout)
+        if (auth.user) {
+          const syncTimeout = setTimeout(() => {
+            console.warn('[App] Cloud sync timed out, continuing without sync');
+          }, 3000);
+          
+          try {
+            await HybridStorageService.enableCloudSync();
+            // Sync from cloud on startup (non-critical, can fail silently)
+            HybridStorageService.syncFromCloud().catch(err => {
+              console.warn('[App] Cloud sync failed:', err);
+            });
+          } catch (err) {
+            console.warn('[App] Failed to enable cloud sync:', err);
+          } finally {
+            clearTimeout(syncTimeout);
+          }
+        }
+        
+        initializedRef.current = true;
+        setIsLoading(false);
       } catch (error) {
+        console.error('[App] Initialization error:', error);
         ErrorService.handleError(error, 'initializeApp');
-      } finally {
         setIsLoading(false);
       }
     };
     
     initializeApp();
-  }, [auth.user]);
+  }, [auth.user, auth.loading]);
 
   // Keyboard shortcuts
   useKeyboardShortcuts([
@@ -166,7 +222,12 @@ export const App: React.FC = () => {
 
     CommandProcessor.setRecordingCallback((action: 'start' | 'stop') => {
       if (action === 'start') {
-        startRecording();
+        // Check if project is selected before starting
+        if (!currentProjectId) {
+          // This will be handled by the command processor's response
+          return;
+        }
+        startRecording(true); // Skip project check since it's already verified
       } else {
         stopRecording();
       }
@@ -196,6 +257,46 @@ export const App: React.FC = () => {
         handleScreenChange('projects');
       } catch (error) {
         ErrorService.handleError(error, 'createProject');
+        throw error;
+      }
+    });
+
+    CommandProcessor.setProjectSelectionCallback(async (projectId: string, projectName: string) => {
+      try {
+        await ProjectManagementService.initialize();
+        if (!ProjectManagementService.isAvailable()) {
+          throw new Error('Project management requires authentication. Please sign in.');
+        }
+
+        let selectedProjectId = projectId;
+        
+        // If no projectId provided, search for project by name
+        if (!selectedProjectId && projectName) {
+          const projects = await ProjectManagementService.getAllProjects();
+          const matchingProject = projects.find(
+            p => p.name.toLowerCase().includes(projectName.toLowerCase()) ||
+                 projectName.toLowerCase().includes(p.name.toLowerCase())
+          );
+          
+          if (!matchingProject) {
+            throw new Error(`Project "${projectName}" not found`);
+          }
+          
+          selectedProjectId = matchingProject.id;
+        }
+
+        if (!selectedProjectId) {
+          throw new Error('Project not found');
+        }
+
+        setCurrentProjectId(selectedProjectId);
+        
+        // Get user's name from profile
+        const userName = auth.profile?.first_name || auth.profile?.full_name?.split(' ')[0] || 'there';
+        
+        return { userName };
+      } catch (error) {
+        ErrorService.handleError(error, 'selectProject');
         throw error;
       }
     });
@@ -299,7 +400,16 @@ export const App: React.FC = () => {
     });
   };
 
-  const startRecording = async () => {
+  const startRecording = async (skipProjectCheck: boolean = false) => {
+    // Check if project is selected (required before recording)
+    if (!skipProjectCheck && !currentProjectId) {
+      ErrorService.handleError(
+        new Error('Please select a project first. Say "Hey Flow, the following information will go under the [project name] job" before starting a recording.'),
+        'startRecording'
+      );
+      return;
+    }
+
     try {
       setIsRecording(true);
       recordingStartTimeRef.current = Date.now();
@@ -335,14 +445,22 @@ export const App: React.FC = () => {
       setCurrentSessionId(sessionId);
       
       // Create or link consultation for this recording
-      if (auth.user) {
+      // Must be associated with a project (which has client info)
+      if (auth.user && currentProjectId) {
         try {
           await ConsultationService.initialize();
           if (ConsultationService.isAvailable()) {
+            // Get project info to populate client details
+            const project = await ProjectManagementService.getProject(currentProjectId);
             const consultation = await ConsultationService.createConsultation({
               title: `Consultation - ${new Date().toLocaleDateString()}`,
+              projectId: currentProjectId,
               consultationDate: new Date(),
               sessionId: sessionId,
+              clientName: project?.clientName,
+              clientEmail: project?.clientEmail,
+              clientPhone: project?.clientPhone,
+              address: project?.address,
             });
             setCurrentConsultationId(consultation.id);
           }
@@ -350,6 +468,8 @@ export const App: React.FC = () => {
           console.warn('Failed to create consultation:', err);
           // Continue with recording even if consultation creation fails
         }
+      } else if (auth.user && !currentProjectId) {
+        ErrorService.handleWarning('Please select a project before starting a recording. Images must be associated with a project and client.');
       }
       
       const [, audioError] = await ErrorService.handleAsyncError(
@@ -453,21 +573,44 @@ export const App: React.FC = () => {
   };
 
   const handlePhotoUpload = async (file: File) => {
-    if (!currentConsultationId || !auth.user) {
-      ErrorService.handleWarning('Please start a consultation or recording first');
+    // Ensure we have a project selected (required for client association)
+    if (!currentProjectId) {
+      ErrorService.handleError(
+        new Error('Please select a project first. Images must be associated with a project and client.'),
+        'uploadPhoto'
+      );
+      return;
+    }
+
+    if (!auth.user) {
+      ErrorService.handleWarning('Please sign in to upload photos');
       return;
     }
 
     try {
-      await ConsultationService.initialize();
-      if (!ConsultationService.isAvailable()) {
-        ErrorService.handleWarning('Consultation service not available. Please sign in.');
-        return;
-      }
+      // If we have a consultation, upload to it (it's already linked to project)
+      if (currentConsultationId) {
+        await ConsultationService.initialize();
+        if (!ConsultationService.isAvailable()) {
+          ErrorService.handleWarning('Consultation service not available. Please sign in.');
+          return;
+        }
 
-      ErrorService.handleInfo('Uploading photo...');
-      await ConsultationService.uploadPhoto(currentConsultationId, file);
-      ErrorService.handleSuccess('Photo uploaded successfully');
+        ErrorService.handleInfo('Uploading photo...');
+        await ConsultationService.uploadPhoto(currentConsultationId, file);
+        ErrorService.handleSuccess('Photo uploaded successfully');
+      } else {
+        // No consultation, upload directly to project
+        await ProjectManagementService.initialize();
+        if (!ProjectManagementService.isAvailable()) {
+          ErrorService.handleWarning('Project management not available. Please sign in.');
+          return;
+        }
+
+        ErrorService.handleInfo('Uploading photo to project...');
+        await ProjectManagementService.uploadDocument(currentProjectId, file);
+        ErrorService.handleSuccess('Photo uploaded successfully to project');
+      }
     } catch (error) {
       ErrorService.handleError(error, 'uploadPhoto');
     }
@@ -674,6 +817,7 @@ export const App: React.FC = () => {
         {currentScreen === 'consultations' && (
           <Suspense fallback={<CircularProgress />}>
             <ConsultationScreen 
+              currentProjectId={currentProjectId}
               onPhotoSelectionChange={(photoIds) => setSelectedPhotoIds(photoIds)}
               onConsultationSelect={(consultationId) => {
                 setCurrentConsultationId(consultationId);

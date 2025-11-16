@@ -13,6 +13,7 @@ export interface ConsultationPhoto {
 export interface Consultation {
   id: string;
   userId: string;
+  projectId?: string; // Link to project (ensures association with project and client)
   title: string;
   clientName?: string;
   clientEmail?: string;
@@ -30,6 +31,7 @@ export interface Consultation {
 
 export interface CreateConsultationInput {
   title: string;
+  projectId?: string; // Link to project (required for proper client association)
   clientName?: string;
   clientEmail?: string;
   clientPhone?: string;

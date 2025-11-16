@@ -1,6 +1,6 @@
 {
-  "name": "IHC Conversation Recorder",
-  "short_name": "IHC Recorder",
+  "name": "ConsultFlow Pro",
+  "short_name": "ConsultFlow Pro",
   "description": "Professional conversation recorder for contractors with AI-powered transcription and analysis",
   "start_url": "/",
   "display": "standalone",
