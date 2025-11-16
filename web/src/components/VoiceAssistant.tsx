@@ -28,9 +28,10 @@ import { HelpTooltip } from './HelpTooltip';
 interface VoiceAssistantProps {
   currentScreen: string;
   onNavigate?: (screen: string) => void;
+  onMicButtonClick?: () => void; // Callback ref for external mic button triggers
 }
 
-export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({ currentScreen, onNavigate }) => {
+export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({ currentScreen, onNavigate, onMicButtonClick }) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const [micEnabled, setMicEnabled] = useState(true); // Mic is on/off toggle state
@@ -163,6 +164,17 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({ currentScreen, o
     handleVoiceCommandRef.current = handleVoiceCommand;
   }, [isListening]);
 
+  // Expose mic button click handler to parent (for bottom nav)
+  useEffect(() => {
+    // Store the handler globally so bottom nav can call it
+    (window as any).__voiceAssistantMicClick = () => {
+      handleVoiceCommand(false);
+    };
+    return () => {
+      delete (window as any).__voiceAssistantMicClick;
+    };
+  }, [handleVoiceCommand]);
+
   const stopListening = async () => {
     try {
       setIsListening(false);
@@ -279,49 +291,21 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({ currentScreen, o
     }
   };
 
-  // On mobile, show minimized floating button when minimized
+  // On mobile, hide minimized floating button since mic is in bottom nav
   if (isMobile && isMinimized && !isListening && !isProcessing) {
-    return (
-      <Box 
-        sx={{ 
-          position: 'fixed', 
-          bottom: { xs: 16, sm: 20 }, 
-          right: { xs: 16, sm: 20 }, 
-          zIndex: 1000 
-        }}
-      >
-        <IconButton
-          onClick={() => setIsMinimized(false)}
-          sx={{
-            width: { xs: 56, sm: 64 },
-            height: { xs: 56, sm: 64 },
-            bgcolor: micEnabled ? 'primary.main' : 'grey.600',
-            color: 'white',
-            boxShadow: 3,
-            border: micEnabled ? 'none' : '2px solid',
-            borderColor: micEnabled ? 'transparent' : 'grey.400',
-            opacity: micEnabled ? 1 : 0.7,
-            '&:hover': {
-              bgcolor: micEnabled ? 'primary.dark' : 'grey.700',
-            },
-          }}
-          aria-label="Open voice assistant"
-        >
-          {micEnabled ? (
-            <MicIcon sx={{ fontSize: { xs: 28, sm: 32 } }} />
-          ) : (
-            <MicOffIcon sx={{ fontSize: { xs: 28, sm: 32 } }} />
-          )}
-        </IconButton>
-      </Box>
-    );
+    return null; // Hide minimized button on mobile since mic is in bottom nav
+  }
+  
+  // Don't show voice assistant panel on mobile when minimized
+  if (isMobile && isMinimized) {
+    return null;
   }
 
   return (
     <Box 
       sx={{ 
-        position: 'fixed', 
-        bottom: { xs: 16, sm: 20 }, 
+        position: 'fixed',
+        bottom: isMobile ? 80 : 16, // Above bottom nav on mobile
         right: { xs: 16, sm: 20 }, 
         left: { xs: 16, sm: 'auto' },
         zIndex: 1000,

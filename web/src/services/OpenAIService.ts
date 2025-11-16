@@ -354,7 +354,7 @@ class OpenAIService {
       throw new Error('OpenAI not initialized. Please set API key in settings.');
     }
 
-    const systemPrompt = `You are a helpful AI assistant for the IHC Conversation Recorder app - a contractor tool for managing projects, consultations, and photos.
+    const systemPrompt = `You are a helpful AI assistant for the ConsultFlow Pro app - a contractor tool for managing projects, consultations, and photos.
 The user is currently on the "${context}" screen.
 
 AVAILABLE ACTIONS:
@@ -609,7 +609,7 @@ IMPORTANT RULES:
       throw new Error('OpenAI not initialized. Please set API key in settings.');
     }
 
-    const systemMessage = `You are Flow, a helpful AI assistant for the IHC Conversation Recorder app - a contractor tool for managing projects, consultations, and photos. 
+    const systemMessage = `You are Flow, a helpful AI assistant for the ConsultFlow Pro app - a contractor tool for managing projects, consultations, and photos. 
 The user is currently on the "${context}" screen.
 
 You can help with:

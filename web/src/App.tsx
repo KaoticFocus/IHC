@@ -826,6 +826,24 @@ export const App: React.FC = () => {
           </Suspense>
         )}
 
+        {currentScreen === 'clients' && (
+          <Box sx={{ p: 3 }}>
+            <Typography variant="h4" gutterBottom>Clients</Typography>
+            <Typography variant="body1" color="text.secondary">
+              Client management coming soon...
+            </Typography>
+          </Box>
+        )}
+
+        {currentScreen === 'tasks' && (
+          <Box sx={{ p: 3 }}>
+            <Typography variant="h4" gutterBottom>Tasks</Typography>
+            <Typography variant="body1" color="text.secondary">
+              Task management coming soon...
+            </Typography>
+          </Box>
+        )}
+
           <SettingsModal
             open={settingsOpen}
             onClose={() => {

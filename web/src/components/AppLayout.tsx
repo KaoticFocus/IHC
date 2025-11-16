@@ -15,6 +15,9 @@ import {
   Avatar,
   useMediaQuery,
   useTheme,
+  BottomNavigation,
+  BottomNavigationAction,
+  Paper,
 } from '@mui/material';
 import {
   Menu as MenuIcon,
@@ -28,6 +31,8 @@ import {
   Keyboard as KeyboardIcon,
   Folder as FolderIcon,
   Mic as MicIcon,
+  People as PeopleIcon,
+  Assignment as AssignmentIcon,
 } from '@mui/icons-material';
 import { HelpTooltip } from './HelpTooltip';
 import { useAuth } from '../context/AuthContext';
@@ -64,6 +69,7 @@ interface AppLayoutProps {
   onScreenChange: (screen: string) => void;
   onSettingsClick: () => void;
   currentScreen?: string;
+  onMicClick?: () => void; // Callback for mic button in bottom nav
 }
 
 export const AppLayout: React.FC<AppLayoutProps> = ({
@@ -71,6 +77,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
   onScreenChange,
   onSettingsClick,
   currentScreen = 'main',
+  onMicClick,
 }) => {
   const auth = useAuth();
   const { toggleTheme, theme } = useThemeMode();
@@ -104,27 +111,44 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
     { text: 'Transcripts', icon: <DescriptionIcon />, screen: 'transcripts' },
   ];
 
+  // Bottom navigation items for mobile
+  const bottomNavItems = [
+    { label: 'Home', icon: <HomeIcon />, screen: 'main' },
+    { label: 'Clients', icon: <PeopleIcon />, screen: 'clients' },
+    { label: 'Mic', icon: <MicIcon />, screen: 'mic', isMic: true },
+    { label: 'Projects', icon: <FolderIcon />, screen: 'projects' },
+    { label: 'Tasks', icon: <AssignmentIcon />, screen: 'tasks' },
+  ];
+
+  // Map current screen to bottom nav value
+  const getBottomNavValue = () => {
+    const item = bottomNavItems.find(item => item.screen === currentScreen);
+    return item ? item.screen : 'main';
+  };
+
   return (
-    <Box sx={{ display: 'flex' }}>
+    <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
       <AppBar
         position="fixed"
         sx={{ zIndex: (theme) => theme.zIndex.drawer + 1 }}
       >
         <Toolbar sx={{ minHeight: { xs: 56, sm: 64 } }}>
-          <HelpTooltip title="Toggle navigation menu">
-            <IconButton
-              color="inherit"
-              aria-label="open drawer"
-              onClick={handleDrawerToggle}
-              edge="start"
-              sx={{ 
-                minWidth: { xs: 44, sm: 48 },
-                minHeight: { xs: 44, sm: 48 },
-              }}
-            >
-              <MenuIcon />
-            </IconButton>
-          </HelpTooltip>
+          {!isMobile && (
+            <HelpTooltip title="Toggle navigation menu">
+              <IconButton
+                color="inherit"
+                aria-label="open drawer"
+                onClick={handleDrawerToggle}
+                edge="start"
+                sx={{ 
+                  minWidth: { xs: 44, sm: 48 },
+                  minHeight: { xs: 44, sm: 48 },
+                }}
+              >
+                <MenuIcon />
+              </IconButton>
+            </HelpTooltip>
+          )}
           <Typography 
             variant={isMobile ? 'subtitle1' : 'h6'} 
             noWrap 
@@ -134,7 +158,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
               fontSize: { xs: '0.875rem', sm: '1rem', md: '1.25rem' },
             }}
           >
-            {isMobile ? 'IHC Recorder' : 'IHC Conversation Recorder'}
+            ConsultFlow Pro
           </Typography>
           {!isMobile && (
             <>
@@ -235,59 +259,56 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
         </Toolbar>
       </AppBar>
 
-      <Drawer
-        variant={isMobile ? 'temporary' : 'persistent'}
-        anchor="left"
-        open={drawerOpen}
-        onClose={handleDrawerClose}
-        ModalProps={{
-          keepMounted: true, // Better open performance on mobile
-        }}
-        sx={{
-          width: drawerWidth,
-          flexShrink: 0,
-          '& .MuiDrawer-paper': {
+      {/* Desktop Drawer - Hidden on mobile */}
+      {!isMobile && (
+        <Drawer
+          variant="persistent"
+          anchor="left"
+          open={drawerOpen}
+          onClose={handleDrawerClose}
+          sx={{
             width: drawerWidth,
-            boxSizing: 'border-box',
-            ...(isMobile && {
-              width: { xs: '85%', sm: drawerWidth },
-              maxWidth: drawerWidth,
-            }),
-          },
-        }}
-      >
-        <Toolbar />
-        <List>
-          {menuItems.map((item) => (
-            <ListItem
-              button
-              key={item.text}
-              onClick={() => {
-                onScreenChange(item.screen);
-                if (isMobile) {
-                  handleDrawerClose();
-                }
-              }}
-              sx={{
-                minHeight: { xs: 56, sm: 48 },
-                '&:hover': {
-                  bgcolor: 'action.hover',
-                },
-              }}
-            >
-              <ListItemIcon sx={{ minWidth: { xs: 48, sm: 40 } }}>
-                {item.icon}
-              </ListItemIcon>
-              <ListItemText 
-                primary={item.text}
-                primaryTypographyProps={{
-                  fontSize: { xs: '1rem', sm: '0.875rem' },
+            flexShrink: 0,
+            '& .MuiDrawer-paper': {
+              width: drawerWidth,
+              boxSizing: 'border-box',
+            },
+          }}
+        >
+          <Toolbar />
+          <List>
+            {menuItems.map((item) => (
+              <ListItem
+                button
+                key={item.text}
+                onClick={() => {
+                  onScreenChange(item.screen);
                 }}
-              />
-            </ListItem>
-          ))}
-        </List>
-      </Drawer>
+                selected={currentScreen === item.screen}
+                sx={{
+                  minHeight: 48,
+                  '&:hover': {
+                    bgcolor: 'action.hover',
+                  },
+                  '&.Mui-selected': {
+                    bgcolor: 'action.selected',
+                  },
+                }}
+              >
+                <ListItemIcon sx={{ minWidth: 40 }}>
+                  {item.icon}
+                </ListItemIcon>
+                <ListItemText 
+                  primary={item.text}
+                  primaryTypographyProps={{
+                    fontSize: '0.875rem',
+                  }}
+                />
+              </ListItem>
+            ))}
+          </List>
+        </Drawer>
+      )}
 
       <Main open={drawerOpen} isMobile={isMobile}>
         <Toolbar sx={{ minHeight: { xs: 56, sm: 64 } }} />
@@ -295,10 +316,79 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
           width: '100%',
           maxWidth: '100%',
           overflowX: 'hidden',
+          paddingBottom: isMobile ? '80px' : 0, // Space for bottom nav on mobile
         }}>
           {children}
         </Box>
       </Main>
+
+      {/* Bottom Navigation for Mobile */}
+      {isMobile && (
+        <Paper 
+          sx={{ 
+            position: 'fixed', 
+            bottom: 0, 
+            left: 0, 
+            right: 0, 
+            zIndex: (theme) => theme.zIndex.drawer + 1,
+            borderTop: '1px solid',
+            borderColor: 'divider',
+          }} 
+          elevation={3}
+        >
+          <BottomNavigation
+            value={getBottomNavValue() === 'mic' ? currentScreen : getBottomNavValue()}
+            onChange={(event, newValue) => {
+              // Mic button is handled by onClick on BottomNavigationAction
+              if (newValue === 'mic' || bottomNavItems.find(item => item.screen === newValue)?.isMic) {
+                return;
+              }
+              onScreenChange(newValue);
+            }}
+            showLabels
+            sx={{
+              height: 64,
+              '& .MuiBottomNavigationAction-root': {
+                minWidth: 0,
+                padding: '6px 8px',
+                '&.Mui-selected': {
+                  color: 'primary.main',
+                },
+              },
+              '& .MuiBottomNavigationAction-label': {
+                fontSize: '0.75rem',
+                marginTop: '4px',
+              },
+            }}
+          >
+            {bottomNavItems.map((item) => (
+              <BottomNavigationAction
+                key={item.screen}
+                label={item.label}
+                value={item.isMic ? currentScreen : item.screen}
+                icon={item.icon}
+                onClick={(e) => {
+                  if (item.isMic) {
+                    e.preventDefault();
+                    // Trigger voice assistant via global handler
+                    if ((window as any).__voiceAssistantMicClick) {
+                      (window as any).__voiceAssistantMicClick();
+                    }
+                  }
+                }}
+                sx={{
+                  ...(item.isMic && {
+                    '& .MuiBottomNavigationAction-root': {
+                      minWidth: 0,
+                    },
+                  }),
+                }}
+              />
+            ))}
+          </BottomNavigation>
+        </Paper>
+      )}
+
       <AuthModal 
         open={authOpen} 
         onClose={() => setAuthOpen(false)}
