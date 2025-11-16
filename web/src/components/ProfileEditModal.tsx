@@ -276,7 +276,13 @@ export const ProfileEditModal: React.FC<ProfileEditModalProps> = ({ open, onClos
       await updateProfile(formData);
       onClose();
     } catch (err: any) {
-      setError(err.message || 'Failed to update profile');
+      // Provide user-friendly error message for missing table
+      const errorMessage = err.message || 'Failed to update profile';
+      if (errorMessage.includes('schema cache') || errorMessage.includes('table not found') || errorMessage.includes('Database table not found')) {
+        setError('Profile feature requires database setup. Please contact support or check database configuration.');
+      } else {
+        setError(errorMessage);
+      }
       ErrorService.handleError(err, 'profileUpdate');
     } finally {
       setLoading(false);

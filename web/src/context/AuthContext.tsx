@@ -59,8 +59,19 @@ export function AuthProvider({ children, supabaseUrl, supabaseAnonKey }: AuthPro
         .eq('id', userId)
         .single();
 
-      if (error && error.code !== 'PGRST116') {
+      if (error) {
         // PGRST116 = no rows returned, which is OK for new users
+        // 42P01 = relation does not exist (table missing)
+        // PGRST301 = schema cache miss (table not found in schema cache)
+        if (error.code === 'PGRST116') {
+          // No profile exists yet, which is fine
+          return;
+        }
+        if (error.code === '42P01' || error.code === 'PGRST301' || error.message?.includes('schema cache')) {
+          console.warn('Users table does not exist in database. Please run the schema migration.');
+          // Don't show error to user, just return empty profile
+          return;
+        }
         console.error('Error loading profile:', error);
         return;
       }
@@ -85,7 +96,14 @@ export function AuthProvider({ children, supabaseUrl, supabaseAnonKey }: AuthPro
             email: userData.user.email,
             full_name: userData.user.user_metadata?.full_name,
           });
-          if (!insertError) {
+          if (insertError) {
+            // Handle missing table error gracefully
+            if (insertError.code === '42P01' || insertError.code === 'PGRST301' || insertError.message?.includes('schema cache')) {
+              console.warn('Users table does not exist. Profile creation skipped.');
+              return;
+            }
+            console.error('Error creating profile:', insertError);
+          } else {
             await loadUserProfile(client, userId);
           }
         }
@@ -301,7 +319,13 @@ export function AuthProvider({ children, supabaseUrl, supabaseAnonKey }: AuthPro
       .update(updateData)
       .eq('id', user.id);
 
-    if (error) throw error;
+    if (error) {
+      // Handle missing table error gracefully
+      if (error.code === '42P01' || error.code === 'PGRST301' || error.message?.includes('schema cache')) {
+        throw new Error('Database table not found. Please contact support or run the database migration.');
+      }
+      throw error;
+    }
 
     // Update auth metadata (only full_name)
     if (updateData.full_name) {

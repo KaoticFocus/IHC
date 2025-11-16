@@ -32,6 +32,7 @@ interface VoiceAssistantProps {
 export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({ currentScreen, onNavigate }) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const [micEnabled, setMicEnabled] = useState(true); // Mic is on/off toggle state
   const [isListening, setIsListening] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
@@ -71,14 +72,16 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({ currentScreen, o
     // Check for extension availability
     setExtensionAvailable(ExtensionService.isExtensionAvailable());
 
-    // Start listening for wake word on mount
-    startWakeWordListening();
+    // Start listening for wake word on mount if mic is enabled
+    if (micEnabled) {
+      startWakeWordListening();
+    }
 
     return () => {
       // Cleanup wake word listening on unmount
       WakeWordService.stopListeningForWakeWord();
     };
-  }, [currentScreen]);
+  }, [currentScreen, micEnabled]);
 
   useEffect(() => {
     // Listen for extension events
@@ -103,7 +106,32 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({ currentScreen, o
     };
   }, [isListening]);
 
+  const toggleMic = async () => {
+    if (micEnabled) {
+      // Turn mic off
+      setMicEnabled(false);
+      setIsListeningForWakeWord(false);
+      WakeWordService.stopListeningForWakeWord();
+      
+      // If currently listening, stop it
+      if (isListening) {
+        await stopListening();
+      }
+    } else {
+      // Turn mic on
+      setMicEnabled(true);
+      await startWakeWordListening();
+    }
+  };
+
   const handleVoiceCommand = async (startConversation: boolean = false) => {
+    // If mic is disabled, enable it first
+    if (!micEnabled) {
+      setMicEnabled(true);
+      await startWakeWordListening();
+      return;
+    }
+
     if (isListening) {
       await stopListening();
       return;
@@ -171,14 +199,16 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({ currentScreen, o
                 handleVoiceCommand(true);
               }, 500);
             } else {
-              // Resume wake word listening
-              await startWakeWordListening();
+              // Resume wake word listening if mic is enabled
+              if (micEnabled) {
+                await startWakeWordListening();
+              }
             }
           };
           await audioRef.current.play();
         } else {
-          // Resume wake word listening if not in conversation mode
-          if (!isConversationMode && !VoiceAssistantService.isInConversationMode()) {
+          // Resume wake word listening if not in conversation mode and mic is enabled
+          if (!isConversationMode && !VoiceAssistantService.isInConversationMode() && micEnabled) {
             await startWakeWordListening();
           }
         }
@@ -188,8 +218,8 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({ currentScreen, o
     } catch (error) {
       console.error('Error processing voice command:', error);
       setIsProcessing(false);
-      // Resume wake word listening on error
-      if (!isConversationMode) {
+      // Resume wake word listening on error if mic is enabled
+      if (!isConversationMode && micEnabled) {
         await startWakeWordListening();
       }
     }
@@ -241,16 +271,23 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({ currentScreen, o
           sx={{
             width: { xs: 56, sm: 64 },
             height: { xs: 56, sm: 64 },
-            bgcolor: 'primary.main',
+            bgcolor: micEnabled ? 'primary.main' : 'grey.600',
             color: 'white',
             boxShadow: 3,
+            border: micEnabled ? 'none' : '2px solid',
+            borderColor: micEnabled ? 'transparent' : 'grey.400',
+            opacity: micEnabled ? 1 : 0.7,
             '&:hover': {
-              bgcolor: 'primary.dark',
+              bgcolor: micEnabled ? 'primary.dark' : 'grey.700',
             },
           }}
           aria-label="Open voice assistant"
         >
-          <MicIcon sx={{ fontSize: { xs: 28, sm: 32 } }} />
+          {micEnabled ? (
+            <MicIcon sx={{ fontSize: { xs: 28, sm: 32 } }} />
+          ) : (
+            <MicOffIcon sx={{ fontSize: { xs: 28, sm: 32 } }} />
+          )}
         </IconButton>
       </Box>
     );
@@ -363,7 +400,18 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({ currentScreen, o
           </Box>
         )}
 
-        {isListeningForWakeWord && !isListening && (
+        {!micEnabled && (
+          <Box sx={{ mb: { xs: 1.5, sm: 2 }, textAlign: 'center', p: { xs: 1, sm: 1.5 }, bgcolor: 'warning.light', borderRadius: 1 }}>
+            <Typography variant="caption" color="warning.dark" sx={{ fontWeight: 'bold', fontSize: { xs: '0.7rem', sm: '0.75rem' } }}>
+              🔇 Microphone Off
+            </Typography>
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5, fontSize: { xs: '0.65rem', sm: '0.7rem' } }}>
+              Click mic button to enable
+            </Typography>
+          </Box>
+        )}
+
+        {isListeningForWakeWord && !isListening && micEnabled && (
           <Box sx={{ mb: { xs: 1.5, sm: 2 }, textAlign: 'center' }}>
             <Typography variant="caption" color="text.secondary" sx={{ fontSize: { xs: '0.7rem', sm: '0.75rem' } }}>
               💤 Listening for "Hey Flow"...
@@ -419,24 +467,31 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({ currentScreen, o
 
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: { xs: 0.75, sm: 1 } }}>
           <Box sx={{ display: 'flex', justifyContent: 'center', gap: { xs: 0.75, sm: 1 } }}>
-            <HelpTooltip title={isListening ? "Click to stop recording" : "Click for voice command"}>
+            <HelpTooltip title={isListening ? "Click to stop recording" : micEnabled ? "Click to toggle mic off" : "Click to enable microphone"}>
               <IconButton
-                color={isListening ? 'error' : 'primary'}
+                color={isListening ? 'error' : micEnabled ? 'primary' : 'default'}
                 size={isMobile ? 'medium' : 'large'}
-                onClick={() => handleVoiceCommand(false)}
+                onClick={isListening ? stopListening : toggleMic}
                 disabled={isProcessing && !isListening}
-                aria-label={isListening ? 'Stop recording' : 'Start command'}
+                aria-label={isListening ? 'Stop recording' : micEnabled ? 'Turn microphone off' : 'Enable microphone'}
                 sx={{
                   width: { xs: 56, sm: 64 },
                   height: { xs: 56, sm: 64 },
                   minWidth: { xs: 56, sm: 64 },
                   minHeight: { xs: 56, sm: 64 },
-                  bgcolor: isListening ? 'error.main' : 'primary.main',
+                  bgcolor: isListening 
+                    ? 'error.main' 
+                    : micEnabled 
+                    ? 'primary.main' 
+                    : 'grey.600',
                   color: 'white',
+                  border: !micEnabled && !isListening ? '2px solid' : 'none',
+                  borderColor: !micEnabled && !isListening ? 'grey.400' : 'transparent',
+                  opacity: !micEnabled && !isListening ? 0.7 : 1,
                   '&:hover': {
-                    bgcolor: isListening ? 'error.dark' : 'primary.dark',
+                    bgcolor: isListening ? 'error.dark' : micEnabled ? 'primary.dark' : 'grey.700',
                   },
-                  animation: isListening ? 'pulse 1.5s infinite' : 'none',
+                  animation: isListening ? 'pulse 1.5s infinite' : micEnabled ? 'none' : 'none',
                   '@keyframes pulse': {
                     '0%': { transform: 'scale(1)', boxShadow: '0 0 0 0 rgba(244, 67, 54, 0.7)' },
                     '50%': { transform: 'scale(1.05)', boxShadow: '0 0 0 10px rgba(244, 67, 54, 0)' },
@@ -446,15 +501,17 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({ currentScreen, o
               >
                 {isListening ? (
                   <MicOffIcon sx={{ fontSize: { xs: 28, sm: 32 } }} />
-                ) : (
+                ) : micEnabled ? (
                   <MicIcon sx={{ fontSize: { xs: 28, sm: 32 } }} />
+                ) : (
+                  <MicOffIcon sx={{ fontSize: { xs: 28, sm: 32 } }} />
                 )}
               </IconButton>
             </HelpTooltip>
-            {!isListening && (
+            {!isListening && micEnabled && (
               <HelpTooltip title="Start a conversation">
                 <IconButton
-                  color="secondary"
+                  color="success"
                   size={isMobile ? 'medium' : 'large'}
                   onClick={() => handleVoiceCommand(true)}
                   disabled={isProcessing}
@@ -464,10 +521,10 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({ currentScreen, o
                     height: { xs: 56, sm: 64 },
                     minWidth: { xs: 56, sm: 64 },
                     minHeight: { xs: 56, sm: 64 },
-                    bgcolor: 'secondary.main',
+                    bgcolor: 'success.main',
                     color: 'white',
                     '&:hover': {
-                      bgcolor: 'secondary.dark',
+                      bgcolor: 'success.dark',
                     },
                   }}
                 >
@@ -489,6 +546,8 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({ currentScreen, o
           >
             {isListening 
               ? 'Click to stop recording' 
+              : !micEnabled
+              ? 'Microphone is off - Click mic to enable'
               : isConversationMode
               ? 'Conversation mode - speak naturally'
               : 'Say "Hey Flow" or click mic'}
