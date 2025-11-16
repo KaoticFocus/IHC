@@ -98,6 +98,36 @@ CREATE TABLE IF NOT EXISTS public.user_settings (
   UNIQUE(user_id, key)
 );
 
+-- Consultations table
+CREATE TABLE IF NOT EXISTS public.consultations (
+  id TEXT PRIMARY KEY,
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  title TEXT NOT NULL,
+  client_name TEXT,
+  client_email TEXT,
+  client_phone TEXT,
+  address TEXT,
+  consultation_date TIMESTAMPTZ NOT NULL,
+  has_recording BOOLEAN DEFAULT false,
+  recording_id TEXT,
+  session_id TEXT,
+  notes TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Consultation photos table
+CREATE TABLE IF NOT EXISTS public.consultation_photos (
+  id TEXT PRIMARY KEY,
+  consultation_id TEXT NOT NULL REFERENCES public.consultations(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  file_path TEXT NOT NULL,
+  file_size BIGINT NOT NULL,
+  mime_type TEXT NOT NULL,
+  description TEXT,
+  uploaded_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 -- Create indexes for better query performance
 CREATE INDEX IF NOT EXISTS idx_leads_user_id ON public.leads(user_id);
 CREATE INDEX IF NOT EXISTS idx_leads_created_at ON public.leads(created_at DESC);
@@ -108,6 +138,9 @@ CREATE INDEX IF NOT EXISTS idx_recordings_user_id ON public.recordings(user_id);
 CREATE INDEX IF NOT EXISTS idx_documents_user_id ON public.documents(user_id);
 CREATE INDEX IF NOT EXISTS idx_documents_lead_id ON public.documents(lead_id);
 CREATE INDEX IF NOT EXISTS idx_scope_of_work_user_id ON public.scope_of_work(user_id);
+CREATE INDEX IF NOT EXISTS idx_consultations_user_id ON public.consultations(user_id);
+CREATE INDEX IF NOT EXISTS idx_consultations_consultation_date ON public.consultations(consultation_date DESC);
+CREATE INDEX IF NOT EXISTS idx_consultation_photos_consultation_id ON public.consultation_photos(consultation_id);
 
 -- Enable Row Level Security (RLS)
 ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
@@ -117,6 +150,8 @@ ALTER TABLE public.recordings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.documents ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.scope_of_work ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.user_settings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.consultations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.consultation_photos ENABLE ROW LEVEL SECURITY;
 
 -- RLS Policies: Users can only access their own data
 CREATE POLICY "Users can view own profile"
@@ -151,6 +186,20 @@ CREATE POLICY "Users can manage own settings"
   ON public.user_settings FOR ALL
   USING (auth.uid() = user_id);
 
+CREATE POLICY "Users can manage own consultations"
+  ON public.consultations FOR ALL
+  USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can manage own consultation photos"
+  ON public.consultation_photos FOR ALL
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.consultations
+      WHERE consultations.id = consultation_photos.consultation_id
+      AND consultations.user_id = auth.uid()
+    )
+  );
+
 -- Create Storage Buckets
 -- Run these in Supabase Dashboard > Storage
 
@@ -159,6 +208,9 @@ CREATE POLICY "Users can manage own settings"
 
 -- Bucket for documents
 -- INSERT INTO storage.buckets (id, name, public) VALUES ('documents', 'documents', false);
+
+-- Bucket for consultation photos
+-- INSERT INTO storage.buckets (id, name, public) VALUES ('consultation-photos', 'consultation-photos', false);
 
 -- Storage Policies
 -- CREATE POLICY "Users can upload own recordings"
@@ -185,6 +237,18 @@ CREATE POLICY "Users can manage own settings"
 --   ON storage.objects FOR DELETE
 --   USING (bucket_id = 'documents' AND auth.uid()::text = (storage.foldername(name))[1]);
 
+-- CREATE POLICY "Users can upload own consultation photos"
+--   ON storage.objects FOR INSERT
+--   WITH CHECK (bucket_id = 'consultation-photos' AND auth.uid()::text = (storage.foldername(name))[1]);
+
+-- CREATE POLICY "Users can view own consultation photos"
+--   ON storage.objects FOR SELECT
+--   USING (bucket_id = 'consultation-photos' AND auth.uid()::text = (storage.foldername(name))[1]);
+
+-- CREATE POLICY "Users can delete own consultation photos"
+--   ON storage.objects FOR DELETE
+--   USING (bucket_id = 'consultation-photos' AND auth.uid()::text = (storage.foldername(name))[1]);
+
 -- Functions for updated_at timestamps
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$
@@ -204,5 +268,8 @@ CREATE TRIGGER update_scope_of_work_updated_at BEFORE UPDATE ON public.scope_of_
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 CREATE TRIGGER update_user_settings_updated_at BEFORE UPDATE ON public.user_settings
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_consultations_updated_at BEFORE UPDATE ON public.consultations
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 

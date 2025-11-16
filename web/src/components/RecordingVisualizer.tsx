@@ -5,8 +5,9 @@ import {
   Paper,
   Typography,
   LinearProgress,
+  Button,
 } from '@mui/material';
-import { Mic as MicIcon, Stop as StopIcon } from '@mui/icons-material';
+import { Mic as MicIcon, Stop as StopIcon, PhotoCamera as PhotoCameraIcon } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
 
 interface RecordingVisualizerProps {
@@ -15,6 +16,7 @@ interface RecordingVisualizerProps {
   onStart: () => void;
   onStop: () => void;
   audioLevel?: number; // 0-100
+  onPhotoUpload?: (file: File) => void; // Callback for photo upload during recording
 }
 
 export const RecordingVisualizer: React.FC<RecordingVisualizerProps> = ({
@@ -23,10 +25,12 @@ export const RecordingVisualizer: React.FC<RecordingVisualizerProps> = ({
   onStart,
   onStop,
   audioLevel = 0,
+  onPhotoUpload,
 }) => {
   const theme = useTheme();
   const [waveform, setWaveform] = useState<number[]>([]);
   const animationRef = useRef<number>();
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (isRecording) {
@@ -54,6 +58,21 @@ export const RecordingVisualizer: React.FC<RecordingVisualizerProps> = ({
     const minutes = Math.floor(totalSeconds / 60);
     const seconds = totalSeconds % 60;
     return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+  };
+
+  const handlePhotoClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file && onPhotoUpload) {
+      onPhotoUpload(file);
+    }
+    // Reset input so same file can be selected again
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
   };
 
   return (
@@ -156,6 +175,34 @@ export const RecordingVisualizer: React.FC<RecordingVisualizerProps> = ({
               },
             }}
           />
+        </Box>
+      )}
+
+      {/* Photo Upload Button (only shown during recording) */}
+      {isRecording && onPhotoUpload && (
+        <Box sx={{ mt: 2 }}>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            onChange={handleFileSelect}
+            style={{ display: 'none' }}
+          />
+          <Button
+            variant="outlined"
+            startIcon={<PhotoCameraIcon />}
+            onClick={handlePhotoClick}
+            sx={{
+              color: 'white',
+              borderColor: 'rgba(255,255,255,0.5)',
+              '&:hover': {
+                borderColor: 'white',
+                bgcolor: 'rgba(255,255,255,0.1)',
+              },
+            }}
+          >
+            Add Photo
+          </Button>
         </Box>
       )}
     </Paper>

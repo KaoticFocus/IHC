@@ -13,6 +13,7 @@ import HybridStorageService from './services/HybridStorageService';
 // Lazy load heavy components for code splitting
 const DocumentManager = lazy(() => import('./components/DocumentManager').then(m => ({ default: m.DocumentManager })));
 const ProjectManagementScreen = lazy(() => import('./components/ProjectManagementScreen').then(m => ({ default: m.ProjectManagementScreen })));
+const ConsultationScreen = lazy(() => import('./components/ConsultationScreen').then(m => ({ default: m.ConsultationScreen })));
 const AppLayout = lazy(() => import('./components/AppLayout').then(m => ({ default: m.AppLayout })));
 const AIAnalysisViewer = lazy(() => import('./components/AIAnalysisViewer').then(m => ({ default: m.AIAnalysisViewer })));
 const ScopeOfWorkViewer = lazy(() => import('./components/ScopeOfWorkViewer').then(m => ({ default: m.ScopeOfWorkViewer })));
@@ -25,6 +26,7 @@ import { ErrorService } from './services/ErrorService';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { ScopeOfWork } from './types/ScopeOfWork';
 import { AIAnalysis } from './types/AIAnalysis';
+import ConsultationService from './services/ConsultationService';
 
 export const App: React.FC = () => {
   const auth = useAuth();
@@ -46,6 +48,7 @@ export const App: React.FC = () => {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const recordingStartTimeRef = useRef<number>(0);
   const durationIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const [currentConsultationId, setCurrentConsultationId] = useState<string | null>(null);
 
   // Load leads on startup
   useEffect(() => {
@@ -199,6 +202,24 @@ export const App: React.FC = () => {
       
       setCurrentSessionId(sessionId);
       
+      // Create or link consultation for this recording
+      if (auth.user) {
+        try {
+          await ConsultationService.initialize();
+          if (ConsultationService.isAvailable()) {
+            const consultation = await ConsultationService.createConsultation({
+              title: `Consultation - ${new Date().toLocaleDateString()}`,
+              consultationDate: new Date(),
+              sessionId: sessionId,
+            });
+            setCurrentConsultationId(consultation.id);
+          }
+        } catch (err) {
+          console.warn('Failed to create consultation:', err);
+          // Continue with recording even if consultation creation fails
+        }
+      }
+      
       const [, audioError] = await ErrorService.handleAsyncError(
         AudioService.startRecording(),
         'startAudioRecording'
@@ -278,9 +299,45 @@ export const App: React.FC = () => {
         }
       }
       
+      // Update consultation with recording ID if available
+      if (currentConsultationId && recordingId && auth.user) {
+        try {
+          await ConsultationService.initialize();
+          if (ConsultationService.isAvailable()) {
+            await ConsultationService.updateConsultation({
+              id: currentConsultationId,
+              recordingId: recordingId,
+            });
+          }
+        } catch (err) {
+          console.warn('Failed to update consultation with recording:', err);
+        }
+      }
+      
       ErrorService.handleSuccess('Recording stopped and saved');
     } catch (error) {
       ErrorService.handleError(error, 'stopRecording');
+    }
+  };
+
+  const handlePhotoUpload = async (file: File) => {
+    if (!currentConsultationId || !auth.user) {
+      ErrorService.handleWarning('Please start a consultation or recording first');
+      return;
+    }
+
+    try {
+      await ConsultationService.initialize();
+      if (!ConsultationService.isAvailable()) {
+        ErrorService.handleWarning('Consultation service not available. Please sign in.');
+        return;
+      }
+
+      ErrorService.handleInfo('Uploading photo...');
+      await ConsultationService.uploadPhoto(currentConsultationId, file);
+      ErrorService.handleSuccess('Photo uploaded successfully');
+    } catch (error) {
+      ErrorService.handleError(error, 'uploadPhoto');
     }
   };
 
@@ -383,6 +440,7 @@ export const App: React.FC = () => {
                 duration={recordingDuration}
                 onStart={startRecording}
                 onStop={stopRecording}
+                onPhotoUpload={handlePhotoUpload}
               />
             </Box>
             
@@ -474,6 +532,12 @@ export const App: React.FC = () => {
 
         {currentScreen === 'transcripts' && (
           <TranscriptViewer />
+        )}
+
+        {currentScreen === 'consultations' && (
+          <Suspense fallback={<CircularProgress />}>
+            <ConsultationScreen />
+          </Suspense>
         )}
 
           <SettingsModal
