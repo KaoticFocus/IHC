@@ -52,7 +52,6 @@ export const App: React.FC = () => {
   const [currentConsultationId, setCurrentConsultationId] = useState<string | null>(null);
   const [selectedPhotoIds, setSelectedPhotoIds] = useState<string[]>([]);
   const [currentProjectId, setCurrentProjectId] = useState<string | null>(null);
-  const [currentConsultationContext, setCurrentConsultationContext] = useState<string | null>(null);
 
   // Load leads on startup
   useEffect(() => {
@@ -670,7 +669,6 @@ export const App: React.FC = () => {
               onPhotoSelectionChange={(photoIds) => setSelectedPhotoIds(photoIds)}
               onConsultationSelect={(consultationId) => {
                 setCurrentConsultationId(consultationId);
-                setCurrentConsultationContext(consultationId);
               }}
             />
           </Suspense>
