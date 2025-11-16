@@ -122,11 +122,21 @@ export function AuthProvider({ children, supabaseUrl, supabaseAnonKey }: AuthPro
   };
 
   const signInWithOAuth = async (provider: 'google' | 'apple') => {
+    console.log(`[AuthContext] Starting OAuth sign-in with ${provider}...`);
+    
     if (!supabase) {
-      throw new Error('Supabase not configured. Please check your environment variables (VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY).');
+      const errorMsg = 'Supabase not configured. Please check your environment variables (VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY).';
+      console.error(`[AuthContext] ${errorMsg}`);
+      console.error(`[AuthContext] Supabase URL: ${import.meta.env.VITE_SUPABASE_URL || 'NOT SET'}`);
+      console.error(`[AuthContext] Supabase Key exists: ${!!import.meta.env.VITE_SUPABASE_ANON_KEY}`);
+      throw new Error(errorMsg);
     }
 
+    console.log(`[AuthContext] Supabase client initialized`);
+    console.log(`[AuthContext] Redirect URL: ${window.location.origin}/auth/callback`);
+
     try {
+      console.log(`[AuthContext] Calling signInWithOAuth for ${provider}...`);
       const { error } = await supabase.auth.signInWithOAuth({
         provider,
         options: {
@@ -134,21 +144,36 @@ export function AuthProvider({ children, supabaseUrl, supabaseAnonKey }: AuthPro
         },
       });
 
+      console.log(`[AuthContext] OAuth response received`, { error });
+
       if (error) {
+        console.error(`[AuthContext] OAuth error:`, error);
+        console.error(`[AuthContext] Error code: ${error.code || 'N/A'}`);
+        console.error(`[AuthContext] Error message: ${error.message || 'N/A'}`);
+        console.error(`[AuthContext] Full error object:`, JSON.stringify(error, null, 2));
+
         // Provide more helpful error messages
-        if (error.message?.includes('not enabled') || error.message?.includes('Unsupported provider')) {
-          throw new Error(
+        if (error.message?.includes('not enabled') || 
+            error.message?.includes('Unsupported provider') ||
+            error.code === 'validation_failed') {
+          const detailedError = new Error(
             `${provider.charAt(0).toUpperCase() + provider.slice(1)} OAuth is not enabled in your Supabase dashboard. ` +
             `Please go to: https://supabase.com/dashboard/project/xppnphkaeczptxuhmpuv/auth/providers ` +
-            `and enable the ${provider} provider by toggling it ON.`
+            `and enable the ${provider} provider by toggling it ON, then add your Client ID and Client Secret.`
           );
+          console.error(`[AuthContext] Throwing detailed error:`, detailedError.message);
+          throw detailedError;
         }
         throw error;
       }
-      
+
+      console.log(`[AuthContext] OAuth sign-in successful, redirecting...`);
       // OAuth will redirect, so no need to update state here
     } catch (err: any) {
-      console.error(`OAuth sign-in error for ${provider}:`, err);
+      console.error(`[AuthContext] OAuth sign-in exception:`, err);
+      console.error(`[AuthContext] Exception type:`, err.constructor.name);
+      console.error(`[AuthContext] Exception message:`, err.message);
+      console.error(`[AuthContext] Exception stack:`, err.stack);
       throw err;
     }
   };

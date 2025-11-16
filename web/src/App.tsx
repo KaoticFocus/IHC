@@ -28,6 +28,7 @@ import { ScopeOfWork } from './types/ScopeOfWork';
 import { AIAnalysis } from './types/AIAnalysis';
 import ConsultationService from './services/ConsultationService';
 import ProjectManagementService from './services/ProjectManagementService';
+import './utils/supabaseDiagnostics'; // Load diagnostics utility
 
 export const App: React.FC = () => {
   const auth = useAuth();
