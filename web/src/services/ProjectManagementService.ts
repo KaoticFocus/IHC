@@ -78,7 +78,7 @@ class ProjectManagementService {
       updatedAt: new Date(),
     };
 
-    const { data, error } = await this.supabase
+    const { error } = await this.supabase
       .from('projects')
       .insert({
         id: project.id,
@@ -270,7 +270,7 @@ class ProjectManagementService {
 
     // Upload to Supabase Storage
     const fileName = `${userId}/${projectId}/${Date.now()}_${file.name}`;
-    const { data: uploadData, error: uploadError } = await this.supabase.storage
+    const { error: uploadError } = await this.supabase.storage
       .from('project-files')
       .upload(fileName, file, {
         contentType: file.type,
@@ -299,7 +299,7 @@ class ProjectManagementService {
       description,
     };
 
-    const { data: docData, error: docError } = await this.supabase
+    const { error: docError } = await this.supabase
       .from('project_documents')
       .insert({
         id: documentId,

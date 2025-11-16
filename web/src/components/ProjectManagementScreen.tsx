@@ -4,10 +4,6 @@ import {
   Paper,
   Typography,
   Button,
-  List,
-  ListItem,
-  ListItemText,
-  ListItemSecondaryAction,
   IconButton,
   Dialog,
   DialogTitle,
@@ -32,7 +28,6 @@ import {
 import {
   Add as AddIcon,
   Delete as DeleteIcon,
-  Edit as EditIcon,
   Upload as UploadIcon,
   Visibility as ViewIcon,
   Folder as FolderIcon,
@@ -50,11 +45,9 @@ export const ProjectManagementScreen: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
-  const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
-  const [selectedDocument, setSelectedDocument] = useState<ProjectDocument | null>(null);
   const [uploading, setUploading] = useState(false);
 
   // Form state
@@ -140,7 +133,7 @@ export const ProjectManagementScreen: React.FC = () => {
     try {
       setUploading(true);
       setError(null);
-      const document = await ProjectManagementService.uploadDocument(
+      await ProjectManagementService.uploadDocument(
         selectedProject.id,
         file
       );

@@ -9,7 +9,6 @@ import {
   Button,
 } from '@mui/material';
 import {
-  People as PeopleIcon,
   Description as DescriptionIcon,
   Mic as MicIcon,
 } from '@mui/icons-material';

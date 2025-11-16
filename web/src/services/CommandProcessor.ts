@@ -1,4 +1,3 @@
-import StorageService from './StorageService';
 import OpenAIService from './OpenAIService';
 
 export interface CommandResult {
@@ -112,7 +111,7 @@ class CommandProcessor {
     };
   }
 
-  private async handleGenerateScope(parameters: any): Promise<CommandResult> {
+  private async handleGenerateScope(_parameters: any): Promise<CommandResult> {
     return {
       success: true,
       message: 'Generating scope of work from your latest recording. This will create a homeowner-friendly project description.',
