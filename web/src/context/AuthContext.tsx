@@ -134,14 +134,10 @@ export function AuthProvider({ children, supabaseUrl, supabaseAnonKey }: AuthPro
 
     console.log(`[AuthContext] Supabase client initialized`);
     
-    // Determine the correct redirect URL
-    // Use current origin, but fallback to Netlify URL if available
-    const currentOrigin = window.location.origin;
-    const redirectUrl = `${currentOrigin}/auth/callback`;
+    // Always use current origin for redirect (will be Netlify URL in production)
+    const redirectUrl = `${window.location.origin}/auth/callback`;
     
-    console.log(`[AuthContext] Current origin: ${currentOrigin}`);
     console.log(`[AuthContext] Redirect URL: ${redirectUrl}`);
-    console.log(`[AuthContext] Note: Make sure this URL is added to Supabase Redirect URLs in project settings`);
 
     try {
       console.log(`[AuthContext] Calling signInWithOAuth for ${provider}...`);
@@ -149,10 +145,6 @@ export function AuthProvider({ children, supabaseUrl, supabaseAnonKey }: AuthPro
         provider,
         options: {
           redirectTo: redirectUrl,
-          queryParams: {
-            // Ensure we redirect to the correct origin
-            redirect_to: redirectUrl,
-          },
         },
       });
 

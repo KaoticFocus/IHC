@@ -123,10 +123,11 @@ If you don't have Google Client ID and Secret yet:
      ```
      https://xppnphkaeczptxuhmpuv.supabase.co/auth/v1/callback
      ```
-   - Also add (for local testing):
+   - Also add your Netlify URL:
      ```
-     http://localhost:5173/auth/callback
+     https://your-site.netlify.app/auth/callback
      ```
+     (Replace `your-site` with your actual Netlify site name)
 5. Click **"Create"**
 6. **IMPORTANT:** Copy both:
    - **Client ID** (long string)

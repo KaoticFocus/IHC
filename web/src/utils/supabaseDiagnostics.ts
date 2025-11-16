@@ -118,7 +118,7 @@ export async function diagnoseSupabaseConnection() {
         provider: 'google',
         options: {
           redirectTo: `${window.location.origin}/auth/callback`,
-          skipBrowserRedirect: true, // Don't actually redirect, just test
+          skipBrowserRedirect: true, // Don't actually redirect, just test the provider availability
         },
       });
 

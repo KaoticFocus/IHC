@@ -48,10 +48,11 @@ The callback URL you'll need: `https://xppnphkaeczptxuhmpuv.supabase.co/auth/v1/
      ```
      https://xppnphkaeczptxuhmpuv.supabase.co/auth/v1/callback
      ```
-   - Also add your local development URL (if testing locally):
+   - Also add your Netlify URL:
      ```
-     http://localhost:5173/auth/callback
+     https://your-site.netlify.app/auth/callback
      ```
+     (Replace `your-site` with your actual Netlify site name)
    - Click "Create"
    - **IMPORTANT:** Copy the **Client ID** and **Client Secret** (you'll need these in Step 3)
 

@@ -20,27 +20,20 @@ Supabase has a **Site URL** configured in project settings that's set to `localh
    - Currently it's probably set to: `http://localhost:3000`
 
 3. **Update Site URL:**
-   - **For Production (Netlify):** Set it to your Netlify URL:
+   - Set it to your Netlify URL:
      ```
      https://your-site.netlify.app
      ```
      (Replace `your-site` with your actual Netlify site name)
-   
-   - **For Local Development:** Keep it as:
-     ```
-     http://localhost:5173
-     ```
-     (Or whatever port your dev server uses)
 
 4. **Add Redirect URLs:**
    - Scroll down to **"Redirect URLs"** section
-   - Add these URLs (one per line):
+   - Add your Netlify URL with wildcard (one per line):
      ```
      https://your-site.netlify.app/**
-     http://localhost:5173/**
-     http://localhost:3000/**
      ```
    - The `**` wildcard allows all paths under that domain
+   - Replace `your-site` with your actual Netlify site name
 
 5. **Click "Save"** at the bottom
 
@@ -55,7 +48,7 @@ If you don't know your Netlify URL:
 
 1. Clear your browser cache
 2. Try signing in with Google again
-3. You should now be redirected to your Netlify URL (or localhost if testing locally)
+3. You should now be redirected to your Netlify URL
 
 ---
 
