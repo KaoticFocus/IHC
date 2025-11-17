@@ -31,12 +31,6 @@ import {
   Keyboard as KeyboardIcon,
   Folder as FolderIcon,
   Mic as MicIcon,
-  People as PeopleIcon,
-  Dashboard as DashboardIcon,
-  RecordVoiceOver as ConsultIcon,
-  Hearing as ListenIcon,
-  KeyboardVoice as DictateIcon,
-  Architecture as TasksIcon,
 } from '@mui/icons-material';
 import { HelpTooltip } from './HelpTooltip';
 import { useAuth } from '../context/AuthContext';
