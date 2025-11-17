@@ -88,13 +88,13 @@ export function AuthProvider({ children, supabaseUrl, supabaseAnonKey }: AuthPro
           avatar_url: data.avatar_url,
         });
       } else {
-        // Create profile if it doesn't exist
+        // Create profile if it doesn't exist (all fields optional)
         const { data: userData } = await client.auth.getUser();
         if (userData?.user) {
           const { error: insertError } = await client.from('users').insert({
             id: userId,
             email: userData.user.email,
-            full_name: userData.user.user_metadata?.full_name,
+            full_name: userData.user.user_metadata?.full_name || null,
           });
           if (insertError) {
             // Handle missing table error gracefully
@@ -219,12 +219,12 @@ export function AuthProvider({ children, supabaseUrl, supabaseAnonKey }: AuthPro
 
     if (error) throw error;
 
-    // Create user profile
+    // Create user profile (all fields optional since profile is separate from login)
     if (data.user) {
       await supabase.from('users').upsert({
         id: data.user.id,
         email: data.user.email,
-        full_name: fullName,
+        full_name: fullName || null,
       });
     }
 
@@ -333,16 +333,28 @@ export function AuthProvider({ children, supabaseUrl, supabaseAnonKey }: AuthPro
     // Prepare update data (exclude id from updates)
     const { id, ...updateData } = updates;
     
+    // Convert empty strings to null for optional fields (all profile fields are optional)
+    const cleanUpdateData: Record<string, any> = {};
+    for (const [key, value] of Object.entries(updateData)) {
+      if (value === '' || value === null || value === undefined) {
+        cleanUpdateData[key] = null;
+      } else {
+        cleanUpdateData[key] = value;
+      }
+    }
+    
     // Update full_name if first_name or last_name changed
-    if (updates.first_name || updates.last_name) {
-      const firstName = updates.first_name ?? profile?.first_name ?? '';
-      const lastName = updates.last_name ?? profile?.last_name ?? '';
-      updateData.full_name = `${firstName} ${lastName}`.trim() || undefined;
+    // Allow full_name to be empty/null if both names are empty
+    if ('first_name' in cleanUpdateData || 'last_name' in cleanUpdateData) {
+      const firstName = cleanUpdateData.first_name ?? profile?.first_name ?? '';
+      const lastName = cleanUpdateData.last_name ?? profile?.last_name ?? '';
+      const combinedName = `${firstName} ${lastName}`.trim();
+      cleanUpdateData.full_name = combinedName || null;
     }
 
     const { error } = await supabase
       .from('users')
-      .update(updateData)
+      .update(cleanUpdateData)
       .eq('id', user.id);
 
     if (error) {
@@ -353,10 +365,11 @@ export function AuthProvider({ children, supabaseUrl, supabaseAnonKey }: AuthPro
       throw error;
     }
 
-    // Update auth metadata (only full_name)
-    if (updateData.full_name) {
+    // Update auth metadata (only full_name, if it exists)
+    // Note: full_name can be null/empty since profile is separate from login
+    if (cleanUpdateData.full_name !== undefined) {
       const { error: authError } = await supabase.auth.updateUser({
-        data: { full_name: updateData.full_name },
+        data: { full_name: cleanUpdateData.full_name || null },
       });
       if (authError) console.warn('Failed to update auth metadata:', authError);
     }
