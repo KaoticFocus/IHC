@@ -32,7 +32,6 @@ import {
   Folder as FolderIcon,
   Mic as MicIcon,
   People as PeopleIcon,
-  Assignment as AssignmentIcon,
   Dashboard as DashboardIcon,
   RecordVoiceOver as ConsultIcon,
   Hearing as ListenIcon,
@@ -74,7 +73,6 @@ interface AppLayoutProps {
   onScreenChange: (screen: string) => void;
   onSettingsClick: () => void;
   currentScreen?: string;
-  onMicClick?: () => void; // Callback for mic button in bottom nav
 }
 
 export const AppLayout: React.FC<AppLayoutProps> = ({
@@ -82,7 +80,6 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
   onScreenChange,
   onSettingsClick,
   currentScreen = 'main',
-  onMicClick,
 }) => {
   const auth = useAuth();
   const { toggleTheme, theme } = useThemeMode();
@@ -345,7 +342,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
         >
           <BottomNavigation
             value={getBottomNavValue() === 'mic' ? currentScreen : getBottomNavValue()}
-            onChange={(event, newValue) => {
+            onChange={(_event, newValue) => {
               // Mic button is handled by onClick on BottomNavigationAction
               if (newValue === 'mic' || bottomNavItems.find(item => item.screen === newValue)?.isMic) {
                 return;

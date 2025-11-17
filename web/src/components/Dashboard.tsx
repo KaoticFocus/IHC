@@ -1,18 +1,14 @@
-import React, { useMemo } from 'react';
+import React from 'react';
 import {
   Box,
   Grid,
   Paper,
   Typography,
-  Card,
-  CardContent,
   Button,
   useMediaQuery,
   useTheme,
 } from '@mui/material';
 import {
-  Description as DescriptionIcon,
-  Mic as MicIcon,
   Warning as WarningIcon,
   HealthAndSafety as HealthIcon,
   TrendingUp as TrendingUpIcon,
@@ -22,7 +18,6 @@ import {
   SelectAll as SelectAllIcon,
   Task as TaskIcon,
 } from '@mui/icons-material';
-import { EnhancedTranscript } from '../services/EnhancedTranscriptionService';
 import { useAuth } from '../context/AuthContext';
 
 interface DashboardProps {
@@ -34,11 +29,11 @@ interface DashboardProps {
 }
 
 export const Dashboard: React.FC<DashboardProps> = ({
-  transcripts,
-  isRecording,
-  recordingDuration = 0,
+  transcripts: _transcripts,
+  isRecording: _isRecording,
+  recordingDuration: _recordingDuration,
   onNavigate,
-  onStartRecording,
+  onStartRecording: _onStartRecording,
 }) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
@@ -46,22 +41,6 @@ export const Dashboard: React.FC<DashboardProps> = ({
   
   // Get user's first name for personalized greeting
   const userName = auth.profile?.first_name || auth.profile?.full_name?.split(' ')[0] || auth.user?.email?.split('@')[0] || 'there';
-
-  const stats = useMemo(() => {
-    const totalTranscripts = transcripts.length;
-    const totalWords = transcripts.reduce((sum, t) => sum + t.text.split(' ').length, 0);
-
-    return {
-      totalTranscripts,
-      totalWords,
-    };
-  }, [transcripts]);
-
-  const formatDuration = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-  };
 
   // Button grid items matching the image
   const buttonItems = [

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, Suspense, lazy, useRef } from 'react';
-import { Box, CircularProgress } from '@mui/material';
+import { Box, CircularProgress, Typography } from '@mui/material';
 import { TranscriptViewer } from './components/TranscriptViewer';
 import { SettingsModal } from './components/SettingsModal';
 import { AuthModal } from './components/AuthModal';

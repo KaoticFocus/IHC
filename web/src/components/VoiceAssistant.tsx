@@ -31,7 +31,7 @@ interface VoiceAssistantProps {
   onMicButtonClick?: () => void; // Callback ref for external mic button triggers
 }
 
-export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({ currentScreen, onNavigate, onMicButtonClick }) => {
+export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({ currentScreen, onNavigate, onMicButtonClick: _onMicButtonClick }) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const [micEnabled, setMicEnabled] = useState(true); // Mic is on/off toggle state
