@@ -113,15 +113,30 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
     { text: 'Transcripts', icon: <DescriptionIcon />, screen: 'transcripts' },
   ];
 
+  // Helper component to render PNG icons
+  const IconImage: React.FC<{ src: string; alt: string }> = ({ src, alt }) => (
+    <Box
+      component="img"
+      src={src}
+      alt={alt}
+      sx={{
+        width: '24px',
+        height: '24px',
+        objectFit: 'contain',
+        transition: 'filter 0.2s ease',
+      }}
+    />
+  );
+
   // Bottom navigation items for mobile - matching the image
   const bottomNavItems = [
-    { label: 'Home', icon: <DashboardIcon />, screen: 'main' },
-    { label: 'Clients', icon: <PeopleIcon />, screen: 'clients' },
-    { label: 'Consult', icon: <ConsultIcon />, screen: 'consultations' },
-    { label: 'Listen', icon: <ListenIcon />, screen: 'mic', isMic: true },
-    { label: 'Dictate', icon: <DictateIcon />, screen: 'mic', isMic: true },
-    { label: 'Projects', icon: <FolderIcon />, screen: 'projects' },
-    { label: 'Tasks', icon: <TasksIcon />, screen: 'tasks' },
+    { label: 'Home', icon: <IconImage src="/icons/main_menu/Home.png" alt="Home" />, screen: 'main' },
+    { label: 'Clients', icon: <IconImage src="/icons/main_menu/Client.png" alt="Clients" />, screen: 'clients' },
+    { label: 'Consult', icon: <IconImage src="/icons/main_menu/Consult.png" alt="Consult" />, screen: 'consultations' },
+    { label: 'Listen', icon: <IconImage src="/icons/main_menu/Listen.png" alt="Listen" />, screen: 'mic', isMic: true },
+    { label: 'Dictate', icon: <IconImage src="/icons/main_menu/Dictate.png" alt="Dictate" />, screen: 'mic', isMic: true },
+    { label: 'Projects', icon: <IconImage src="/icons/main_menu/Projects.png" alt="Projects" />, screen: 'projects' },
+    { label: 'Tasks', icon: <IconImage src="/icons/main_menu/Tasks.png" alt="Tasks" />, screen: 'tasks' },
   ];
 
   // Map current screen to bottom nav value
@@ -358,6 +373,15 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
                 maxWidth: '14.28%', // 7 items = ~14.28% each
                 '&.Mui-selected': {
                   color: 'primary.main',
+                  '& img': {
+                    // Convert white icon to primary blue (#2196f3)
+                    filter: 'brightness(0) saturate(100%) invert(48%) sepia(79%) saturate(2476%) hue-rotate(188deg) brightness(98%) contrast(96%)',
+                  },
+                },
+                '&:not(.Mui-selected) img': {
+                  filter: muiTheme.palette.mode === 'dark' 
+                    ? 'brightness(0) invert(1) opacity(0.7)' 
+                    : 'brightness(0) invert(0.4)',
                 },
               },
               '& .MuiBottomNavigationAction-label': {
