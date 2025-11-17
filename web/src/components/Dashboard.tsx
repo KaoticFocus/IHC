@@ -40,7 +40,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
   const auth = useAuth();
   
   // Get user's first name for personalized greeting
-  const userName = auth.profile?.first_name || auth.profile?.full_name?.split(' ')[0] || auth.user?.email?.split('@')[0] || 'there';
+  const firstName = auth.profile?.first_name || 'there';
 
   // Button grid items matching the image
   const buttonItems = [
@@ -81,7 +81,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
             textAlign: 'center',
           }}
         >
-          What can I do for you, {userName}?
+          What can I do for you, {firstName}?
         </Typography>
       </Paper>
 
