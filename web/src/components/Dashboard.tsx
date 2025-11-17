@@ -1,7 +1,6 @@
 import React from 'react';
 import {
   Box,
-  Grid,
   Paper,
   Typography,
   Button,
@@ -86,51 +85,43 @@ export const Dashboard: React.FC<DashboardProps> = ({
         </Typography>
       </Paper>
 
-      {/* Button Grid */}
-      <Grid container spacing={2}>
-        {buttonItems.map((row, rowIndex) => (
-          <Grid container item xs={12} spacing={2} key={rowIndex}>
-            {row.map((button, buttonIndex) => (
-              <Grid item xs={12} sm={4} key={buttonIndex}>
-                <Button
-                  variant="outlined"
-                  fullWidth
-                  onClick={button.onClick}
-                  sx={{
-                    p: { xs: 2, sm: 2.5 },
-                    minHeight: { xs: 56, sm: 64 },
-                    borderRadius: 2,
-                    border: '1px solid',
-                    borderColor: 'divider',
-                    textTransform: 'none',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: 1,
-                    '&:hover': {
-                      borderColor: 'primary.main',
-                      bgcolor: 'action.hover',
-                    },
-                  }}
-                >
-                  <Box sx={{ fontSize: { xs: 24, sm: 28 }, color: 'primary.main' }}>
-                    {button.icon}
-                  </Box>
-                  <Typography
-                    variant="body2"
-                    sx={{
-                      fontSize: { xs: '0.75rem', sm: '0.875rem' },
-                      fontWeight: 500,
-                      color: 'text.primary',
-                    }}
-                  >
-                    {button.label}
-                  </Typography>
-                </Button>
-              </Grid>
-            ))}
-          </Grid>
+      {/* Button Pills */}
+      <Box
+        sx={{
+          display: 'flex',
+          flexWrap: 'wrap',
+          gap: 1.5,
+          justifyContent: 'center',
+        }}
+      >
+        {buttonItems.flat().map((button, index) => (
+          <Button
+            key={index}
+            variant="outlined"
+            onClick={button.onClick}
+            sx={{
+              px: 2,
+              py: 1,
+              borderRadius: 3,
+              border: '1px solid',
+              borderColor: 'divider',
+              textTransform: 'none',
+              fontFamily: '"Roboto", "Helvetica", "Arial", sans-serif',
+              fontSize: '1rem',
+              fontWeight: 400,
+              whiteSpace: 'nowrap',
+              minWidth: 'auto',
+              width: 'auto',
+              '&:hover': {
+                borderColor: 'primary.main',
+                bgcolor: 'action.hover',
+              },
+            }}
+          >
+            {button.label}
+          </Button>
         ))}
-      </Grid>
+      </Box>
 
     </Box>
   );
