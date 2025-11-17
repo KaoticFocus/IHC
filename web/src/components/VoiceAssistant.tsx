@@ -11,11 +11,14 @@ import {
   Chip,
   useMediaQuery,
   useTheme,
+  Alert,
+  Button,
 } from '@mui/material';
 import {
   Mic as MicIcon,
   MicOff as MicOffIcon,
   History as HistoryIcon,
+  Stop as StopIcon,
 } from '@mui/icons-material';
 import VoiceAssistantService, { AssistantResponse } from '../services/VoiceAssistantService';
 import AudioService from '../services/AudioService';
@@ -409,14 +412,36 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({ currentScreen, o
         )}
 
         {!micEnabled && (
-          <Box sx={{ mb: { xs: 1.5, sm: 2 }, textAlign: 'center', p: { xs: 1, sm: 1.5 }, bgcolor: 'warning.light', borderRadius: 1 }}>
-            <Typography variant="caption" color="warning.dark" sx={{ fontWeight: 'bold', fontSize: { xs: '0.7rem', sm: '0.75rem' } }}>
+          <Alert 
+            severity="warning" 
+            sx={{ 
+              mb: { xs: 1.5, sm: 2 }, 
+              fontSize: { xs: '0.75rem', sm: '0.875rem' },
+              '& .MuiAlert-action': {
+                alignItems: 'center',
+              },
+            }}
+            action={
+              <Button
+                size="small"
+                color="inherit"
+                onClick={toggleMic}
+                sx={{ 
+                  textTransform: 'none',
+                  fontWeight: 600,
+                }}
+              >
+                Turn On
+              </Button>
+            }
+          >
+            <Typography variant="body2">
               🔇 Microphone Off
             </Typography>
-            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5, fontSize: { xs: '0.65rem', sm: '0.7rem' } }}>
-              Click mic button to enable
+            <Typography variant="caption" display="block" sx={{ mt: 0.5 }}>
+              Click the mic button or "Turn On" to enable
             </Typography>
-          </Box>
+          </Alert>
         )}
 
         {isListeningForWakeWord && !isListening && micEnabled && (
@@ -475,7 +500,7 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({ currentScreen, o
 
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: { xs: 0.75, sm: 1 } }}>
           <Box sx={{ display: 'flex', justifyContent: 'center', gap: { xs: 0.75, sm: 1 } }}>
-            <HelpTooltip title={isListening ? "Click to stop recording" : micEnabled ? "Click to toggle mic off" : "Click to enable microphone"}>
+            <HelpTooltip title={isListening ? "Click to stop recording" : micEnabled ? "Click to turn microphone off" : "Click to enable microphone"}>
               <IconButton
                 color={isListening ? 'error' : micEnabled ? 'primary' : 'default'}
                 size={isMobile ? 'medium' : 'large'}
@@ -505,14 +530,18 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({ currentScreen, o
                     '50%': { transform: 'scale(1.05)', boxShadow: '0 0 0 10px rgba(244, 67, 54, 0)' },
                     '100%': { transform: 'scale(1)', boxShadow: '0 0 0 0 rgba(244, 67, 54, 0)' },
                   },
+                  '& .MuiSvgIcon-root': {
+                    display: 'block',
+                    color: 'white',
+                  },
                 }}
               >
                 {isListening ? (
-                  <MicOffIcon sx={{ fontSize: { xs: 28, sm: 32 } }} />
+                  <StopIcon sx={{ fontSize: { xs: 28, sm: 32 }, color: 'white' }} />
                 ) : micEnabled ? (
-                  <MicIcon sx={{ fontSize: { xs: 28, sm: 32 } }} />
+                  <MicIcon sx={{ fontSize: { xs: 28, sm: 32 }, color: 'white' }} />
                 ) : (
-                  <MicOffIcon sx={{ fontSize: { xs: 28, sm: 32 } }} />
+                  <MicOffIcon sx={{ fontSize: { xs: 28, sm: 32 }, color: 'white' }} />
                 )}
               </IconButton>
             </HelpTooltip>
