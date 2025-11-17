@@ -33,6 +33,11 @@ import {
   Mic as MicIcon,
   People as PeopleIcon,
   Assignment as AssignmentIcon,
+  Dashboard as DashboardIcon,
+  RecordVoiceOver as ConsultIcon,
+  Hearing as ListenIcon,
+  KeyboardVoice as DictateIcon,
+  Architecture as TasksIcon,
 } from '@mui/icons-material';
 import { HelpTooltip } from './HelpTooltip';
 import { useAuth } from '../context/AuthContext';
@@ -111,13 +116,15 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
     { text: 'Transcripts', icon: <DescriptionIcon />, screen: 'transcripts' },
   ];
 
-  // Bottom navigation items for mobile
+  // Bottom navigation items for mobile - matching the image
   const bottomNavItems = [
-    { label: 'Home', icon: <HomeIcon />, screen: 'main' },
+    { label: 'Home', icon: <DashboardIcon />, screen: 'main' },
     { label: 'Clients', icon: <PeopleIcon />, screen: 'clients' },
-    { label: 'Mic', icon: <MicIcon />, screen: 'mic', isMic: true },
+    { label: 'Consult', icon: <ConsultIcon />, screen: 'consultations' },
+    { label: 'Listen', icon: <ListenIcon />, screen: 'mic', isMic: true },
+    { label: 'Dictate', icon: <DictateIcon />, screen: 'mic', isMic: true },
     { label: 'Projects', icon: <FolderIcon />, screen: 'projects' },
-    { label: 'Tasks', icon: <AssignmentIcon />, screen: 'tasks' },
+    { label: 'Tasks', icon: <TasksIcon />, screen: 'tasks' },
   ];
 
   // Map current screen to bottom nav value
@@ -350,14 +357,18 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
               height: 64,
               '& .MuiBottomNavigationAction-root': {
                 minWidth: 0,
-                padding: '6px 8px',
+                padding: '4px 2px',
+                maxWidth: '14.28%', // 7 items = ~14.28% each
                 '&.Mui-selected': {
                   color: 'primary.main',
                 },
               },
               '& .MuiBottomNavigationAction-label': {
-                fontSize: '0.75rem',
-                marginTop: '4px',
+                fontSize: '0.65rem',
+                marginTop: '2px',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
               },
             }}
           >
