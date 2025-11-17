@@ -19,6 +19,7 @@ import {
   Task as TaskIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../context/AuthContext';
+import type { EnhancedTranscript } from '../services/EnhancedTranscriptionService';
 
 interface DashboardProps {
   transcripts: EnhancedTranscript[];
